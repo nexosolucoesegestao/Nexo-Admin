@@ -1,4 +1,4 @@
-<!-- Produtos — CRUD completo -->
+<!-- Produtos — CRUD corrigido para colunas reais -->
 
 <div class="page-header">
     <div>
@@ -36,18 +36,14 @@
         <div class="modal-header"><h3 id="modal-produto-title">Novo Produto</h3></div>
         <div class="modal-body">
             <input type="hidden" id="produto-id">
-            <div class="form-group mb-2"><label class="form-label">Código ID</label><input type="text" class="form-input" id="produto-codigo" placeholder="PRD-B-017"></div>
             <div class="form-group mb-2"><label class="form-label">Corte *</label><input type="text" class="form-input" id="produto-corte" placeholder="Ex: Picanha"></div>
-            <div class="form-row mb-2">
+            <div class="form-row">
                 <div class="form-group"><label class="form-label">Proteína *</label>
                     <select class="form-select" id="produto-proteina"><option value="">Selecione...</option><option>Bovino</option><option>Suino</option><option>Aves</option></select>
                 </div>
                 <div class="form-group"><label class="form-label">Classificação *</label>
                     <select class="form-select" id="produto-classif"><option value="">Selecione...</option><option>Basico</option><option>Complementar</option></select>
                 </div>
-            </div>
-            <div class="form-group"><label class="form-label">Ativo</label>
-                <select class="form-select" id="produto-ativo"><option value="true">Sim</option><option value="false">Não</option></select>
             </div>
         </div>
         <div class="modal-footer">
@@ -63,34 +59,29 @@ window.initProdutos = async () => {
 
     async function load() {
         try { produtos = await NEXO.api.getProdutos(); render(produtos); }
-        catch (err) { NEXO.ui.toast('Erro ao carregar.', 'error'); }
+        catch (err) { NEXO.ui.toast('Erro ao carregar.', 'error'); console.error(err); }
     }
 
     function render(data) {
         document.getElementById('produtos-count').textContent = `${data.length} produto${data.length !== 1 ? 's' : ''}`;
         if (!data.length) { document.getElementById('produtos-table-area').innerHTML = '<div class="empty-state"><div class="icon">🥩</div><p>Nenhum produto cadastrado</p></div>'; return; }
-
         const proteinaIcon = { 'Bovino': '🐂', 'Suino': '🐷', 'Aves': '🐔' };
         const rows = data.map(p => `<tr>
-            <td>${NEXO.ui.escapeHtml(p.codigo_produto || '—')}</td>
             <td>${proteinaIcon[p.proteina] || '•'} ${NEXO.ui.escapeHtml(p.proteina || '—')}</td>
             <td><strong>${NEXO.ui.escapeHtml(p.corte_pai)}</strong></td>
             <td><span class="badge ${p.classificacao === 'Basico' ? 'badge-success' : 'badge-info'}">${p.classificacao || '—'}</span></td>
-            <td>${p.ativo !== false ? '✅' : '❌'}</td>
             <td><div class="flex-gap"><button class="btn btn-ghost btn-sm" onclick="editProduto('${p.id}')">✏️</button><button class="btn btn-ghost btn-sm" onclick="removeProduto('${p.id}','${NEXO.ui.escapeHtml(p.corte_pai)}')">🗑️</button></div></td>
         </tr>`).join('');
-        document.getElementById('produtos-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Código</th><th>Proteína</th><th>Corte</th><th>Classificação</th><th>Ativo</th><th style="width:100px">Ações</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        document.getElementById('produtos-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Proteína</th><th>Corte</th><th>Classificação</th><th style="width:100px">Ações</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }
 
     const modal = document.getElementById('modal-produto');
     const openModal = (p = null) => {
         document.getElementById('modal-produto-title').textContent = p ? 'Editar Produto' : 'Novo Produto';
         document.getElementById('produto-id').value = p?.id || '';
-        document.getElementById('produto-codigo').value = p?.codigo_produto || '';
         document.getElementById('produto-corte').value = p?.corte_pai || '';
         document.getElementById('produto-proteina').value = p?.proteina || '';
         document.getElementById('produto-classif').value = p?.classificacao || '';
-        document.getElementById('produto-ativo').value = p?.ativo !== false ? 'true' : 'false';
         modal.style.display = 'flex';
         requestAnimationFrame(() => modal.classList.add('modal-visible'));
     };
@@ -105,12 +96,8 @@ window.initProdutos = async () => {
         const corte = document.getElementById('produto-corte').value.trim();
         const proteina = document.getElementById('produto-proteina').value;
         const classif = document.getElementById('produto-classif').value;
-        if (!corte || !proteina || !classif) { NEXO.ui.toast('Preencha todos os campos obrigatórios.', 'warning'); return; }
-        const payload = {
-            codigo_produto: document.getElementById('produto-codigo').value.trim() || null,
-            corte_pai: corte, proteina, classificacao: classif,
-            ativo: document.getElementById('produto-ativo').value === 'true'
-        };
+        if (!corte || !proteina || !classif) { NEXO.ui.toast('Preencha todos os campos.', 'warning'); return; }
+        const payload = { corte_pai: corte, proteina, classificacao: classif };
         const btn = document.getElementById('modal-produto-save');
         NEXO.ui.btnLoading(btn, true);
         try {
@@ -136,7 +123,7 @@ window.initProdutos = async () => {
         let f = produtos;
         if (prot) f = f.filter(p => p.proteina === prot);
         if (cls) f = f.filter(p => p.classificacao === cls);
-        if (q) f = f.filter(p => p.corte_pai.toLowerCase().includes(q) || (p.codigo_produto||'').toLowerCase().includes(q));
+        if (q) f = f.filter(p => p.corte_pai.toLowerCase().includes(q));
         render(f);
     }
 
