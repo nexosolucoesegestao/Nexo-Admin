@@ -1,4 +1,4 @@
-<!-- Pessoas — CRUD completo -->
+<!-- Pessoas — CRUD corrigido para colunas reais -->
 
 <div class="page-header">
     <div>
@@ -48,25 +48,20 @@
                 </div>
             </div>
             <div class="form-row mb-2">
-                <div class="form-group"><label class="form-label">Setor</label>
-                    <select class="form-select" id="pessoa-setor">
-                        <option value="acougue">Açougue</option><option value="rotisseria">Rotisseria</option><option value="frios">Frios</option><option value="outro">Outro</option>
-                    </select>
-                </div>
                 <div class="form-group"><label class="form-label">Tipo</label>
                     <select class="form-select" id="pessoa-tipo">
                         <option value="loja">Funcionário da Loja</option>
                         <option value="terceiro">Terceiro/Promotor</option>
                     </select>
                 </div>
+                <div class="form-group" id="grupo-marca" style="display:none;">
+                    <label class="form-label">Marca (Terceiro)</label>
+                    <input type="text" class="form-input" id="pessoa-marca" placeholder="Ex: Seara">
+                </div>
             </div>
-            <div class="form-group mb-2" id="grupo-marca" style="display:none;">
-                <label class="form-label">Marca (Terceiro)</label>
-                <input type="text" class="form-input" id="pessoa-marca" placeholder="Ex: Seara, BRF, Aurora">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Telefone</label>
-                <input type="text" class="form-input" id="pessoa-telefone" placeholder="(11) 99999-0000">
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Telefone</label><input type="text" class="form-input" id="pessoa-telefone" placeholder="(11) 99999-0000"></div>
+                <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="pessoa-email" placeholder="email@exemplo.com"></div>
             </div>
         </div>
         <div class="modal-footer">
@@ -87,7 +82,7 @@ window.initPessoas = async () => {
             document.getElementById('filtro-loja-pessoa').innerHTML = `<option value="">Todas as lojas</option>${opts}`;
             document.getElementById('pessoa-loja').innerHTML = `<option value="">Selecione...</option>${opts}`;
             render(pessoas);
-        } catch (err) { NEXO.ui.toast('Erro ao carregar.', 'error'); }
+        } catch (err) { NEXO.ui.toast('Erro ao carregar.', 'error'); console.error(err); }
     }
 
     function render(data) {
@@ -103,32 +98,29 @@ window.initPessoas = async () => {
                 <td>${NEXO.ui.escapeHtml(lojaNome)}</td>
                 <td>${NEXO.ui.escapeHtml(p.cargo || '—')}</td>
                 <td>${NEXO.ui.escapeHtml(p.turno || '—')}</td>
-                <td>${NEXO.ui.escapeHtml(p.setor || '—')}</td>
                 <td>${tipoBadge}</td>
                 <td><div class="flex-gap"><button class="btn btn-ghost btn-sm" onclick="editPessoa('${p.id}')">✏️</button><button class="btn btn-ghost btn-sm" onclick="removePessoa('${p.id}','${NEXO.ui.escapeHtml(p.nome)}')">🗑️</button></div></td>
             </tr>`;
         }).join('');
-        document.getElementById('pessoas-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Nome</th><th>Loja</th><th>Cargo</th><th>Turno</th><th>Setor</th><th>Tipo</th><th style="width:100px">Ações</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        document.getElementById('pessoas-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Nome</th><th>Loja</th><th>Cargo</th><th>Turno</th><th>Tipo</th><th style="width:100px">Ações</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }
 
-    // Modal
     const modal = document.getElementById('modal-pessoa');
     const tipoSelect = document.getElementById('pessoa-tipo');
     const grupoMarca = document.getElementById('grupo-marca');
-
     tipoSelect.onchange = () => { grupoMarca.style.display = tipoSelect.value === 'terceiro' ? '' : 'none'; };
 
     const openModal = (p = null) => {
         document.getElementById('modal-pessoa-title').textContent = p ? 'Editar Pessoa' : 'Nova Pessoa';
         document.getElementById('pessoa-id').value = p?.id || '';
         document.getElementById('pessoa-nome').value = p?.nome || '';
-        document.getElementById('pessoa-loja').value = p?.id_loja || '';
+        document.getElementById('pessoa-loja').value = p?.loja_id || '';
         document.getElementById('pessoa-cargo').value = p?.cargo || '';
         document.getElementById('pessoa-turno').value = p?.turno || '';
-        document.getElementById('pessoa-setor').value = p?.setor || 'acougue';
         document.getElementById('pessoa-tipo').value = p?.tipo || 'loja';
         document.getElementById('pessoa-marca').value = p?.marca_terceiro || '';
         document.getElementById('pessoa-telefone').value = p?.telefone || '';
+        document.getElementById('pessoa-email').value = p?.email || '';
         grupoMarca.style.display = (p?.tipo === 'terceiro') ? '' : 'none';
         modal.style.display = 'flex';
         requestAnimationFrame(() => modal.classList.add('modal-visible'));
@@ -142,17 +134,18 @@ window.initPessoas = async () => {
     document.getElementById('modal-pessoa-save').onclick = async () => {
         const id = document.getElementById('pessoa-id').value;
         const nome = document.getElementById('pessoa-nome').value.trim();
-        const idLoja = document.getElementById('pessoa-loja').value;
+        const lojaId = document.getElementById('pessoa-loja').value;
         const cargo = document.getElementById('pessoa-cargo').value;
         if (!nome) { NEXO.ui.toast('Nome obrigatório.', 'warning'); return; }
-        if (!idLoja) { NEXO.ui.toast('Selecione uma loja.', 'warning'); return; }
+        if (!lojaId) { NEXO.ui.toast('Selecione uma loja.', 'warning'); return; }
         if (!cargo) { NEXO.ui.toast('Selecione um cargo.', 'warning'); return; }
         const payload = {
-            nome, id_loja: idLoja, cargo, turno: document.getElementById('pessoa-turno').value || null,
-            setor: document.getElementById('pessoa-setor').value || 'acougue',
+            nome, loja_id: lojaId, cargo,
+            turno: document.getElementById('pessoa-turno').value || null,
             tipo: document.getElementById('pessoa-tipo').value || 'loja',
             marca_terceiro: tipoSelect.value === 'terceiro' ? document.getElementById('pessoa-marca').value.trim() || null : null,
-            telefone: document.getElementById('pessoa-telefone').value.trim() || null
+            telefone: document.getElementById('pessoa-telefone').value.trim() || null,
+            email: document.getElementById('pessoa-email').value.trim() || null
         };
         const btn = document.getElementById('modal-pessoa-save');
         NEXO.ui.btnLoading(btn, true);
@@ -172,10 +165,10 @@ window.initPessoas = async () => {
         });
     };
 
-    document.getElementById('filtro-loja-pessoa').onchange = (e) => render(e.target.value ? pessoas.filter(p => p.id_loja === e.target.value) : pessoas);
+    document.getElementById('filtro-loja-pessoa').onchange = (e) => render(e.target.value ? pessoas.filter(p => p.loja_id === e.target.value) : pessoas);
     document.getElementById('search-pessoas').addEventListener('input', NEXO.ui.debounce((e) => {
         const q = e.target.value.toLowerCase(), lj = document.getElementById('filtro-loja-pessoa').value;
-        let f = lj ? pessoas.filter(p => p.id_loja === lj) : pessoas;
+        let f = lj ? pessoas.filter(p => p.loja_id === lj) : pessoas;
         if (q) f = f.filter(p => p.nome.toLowerCase().includes(q) || (p.cargo||'').toLowerCase().includes(q));
         render(f);
     }, 200));
