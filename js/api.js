@@ -1,9 +1,5 @@
 // ============================================================
-// NEXO Intelligence Admin — API Module
-// ============================================================
-// Todas as queries ao Supabase centralizadas.
-// Aplica filtro automático por id_rede para gestor_rede.
-// Super Admin vê tudo.
+// NEXO Intelligence Admin — API Module (v1.1 — campos corrigidos)
 // ============================================================
 
 window.NEXO = window.NEXO || {};
@@ -12,13 +8,11 @@ window.NEXO.api = (() => {
 
     const sb = () => NEXO.supabase;
 
-    // ── Helper: aplica filtro de rede se gestor ─────────────
-
     async function _getRedeFilter() {
         const user = await NEXO.auth.getUser();
         if (!user) return null;
-        if (NEXO.auth.isSuperAdmin(user)) return null; // vê tudo
-        return NEXO.auth.getIdRede(user); // filtra por rede
+        if (NEXO.auth.isSuperAdmin(user)) return null;
+        return NEXO.auth.getIdRede(user);
     }
 
     // ── REDES ────────────────────────────────────────────────
@@ -26,7 +20,7 @@ window.NEXO.api = (() => {
     async function getRedes() {
         const { data, error } = await sb().from('redes').select('*').order('nome');
         if (error) throw error;
-        return data;
+        return data || [];
     }
 
     async function getRede(id) {
@@ -53,6 +47,8 @@ window.NEXO.api = (() => {
     }
 
     // ── LOJAS ────────────────────────────────────────────────
+    // Colunas reais: id(text), nome, rede, cnpj, endereco, cidade, uf,
+    //   contato_gerente, tel_gerente, data_implantacao, status, created_at, id_rede(uuid)
 
     async function getLojas() {
         const redeFilter = await _getRedeFilter();
@@ -60,7 +56,7 @@ window.NEXO.api = (() => {
         if (redeFilter) query = query.eq('id_rede', redeFilter);
         const { data, error } = await query;
         if (error) throw error;
-        return data;
+        return data || [];
     }
 
     async function getLoja(id) {
@@ -87,15 +83,15 @@ window.NEXO.api = (() => {
     }
 
     // ── PESSOAS ──────────────────────────────────────────────
+    // Colunas reais: id(text), nome, tipo, cargo, loja_id(text), marca_terceiro,
+    //   telefone, turno, email, senha_hash, data_cadastro, status, created_at
 
-    async function getPessoas(idLoja = null) {
+    async function getPessoas(lojaId = null) {
         let query = sb().from('pessoas').select('*, lojas(nome, id_rede)').order('nome');
-        if (idLoja) query = query.eq('id_loja', idLoja);
+        if (lojaId) query = query.eq('loja_id', lojaId);
 
-        // Filtro por rede para gestor
         const redeFilter = await _getRedeFilter();
-        if (redeFilter && !idLoja) {
-            // Precisa join — filtra via lojas.id_rede
+        if (redeFilter && !lojaId) {
             query = sb().from('pessoas')
                 .select('*, lojas!inner(nome, id_rede)')
                 .eq('lojas.id_rede', redeFilter)
@@ -104,7 +100,7 @@ window.NEXO.api = (() => {
 
         const { data, error } = await query;
         if (error) throw error;
-        return data;
+        return data || [];
     }
 
     async function createPessoa(payload) {
@@ -125,11 +121,12 @@ window.NEXO.api = (() => {
     }
 
     // ── PRODUTOS ─────────────────────────────────────────────
+    // Colunas reais: id(text), proteina, corte_pai, classificacao, created_at
 
     async function getProdutos() {
         const { data, error } = await sb().from('produtos').select('*').order('proteina, corte_pai');
         if (error) throw error;
-        return data;
+        return data || [];
     }
 
     async function createProduto(payload) {
@@ -150,35 +147,35 @@ window.NEXO.api = (() => {
     }
 
     // ── LOJA_PRODUTOS (vínculos) ─────────────────────────────
+    // Colunas reais: id(bigint), loja_id(text), produto_id(text), monitorado(boolean)
 
-    async function getVinculos(idLoja) {
+    async function getVinculos(lojaId) {
         const { data, error } = await sb().from('loja_produtos')
             .select('*, produtos(proteina, corte_pai, classificacao)')
-            .eq('id_loja', idLoja)
-            .order('created_at');
+            .eq('loja_id', lojaId);
         if (error) throw error;
-        return data;
+        return data || [];
     }
 
-    async function setVinculos(idLoja, produtoIds) {
-        // Delete all → Insert new (abordagem upsert simples)
-        const { error: delError } = await sb().from('loja_produtos').delete().eq('id_loja', idLoja);
+    async function setVinculos(lojaId, produtoIds) {
+        const { error: delError } = await sb().from('loja_produtos').delete().eq('loja_id', lojaId);
         if (delError) throw delError;
 
         if (produtoIds.length === 0) return [];
 
-        const rows = produtoIds.map(pid => ({ id_loja: idLoja, id_produto: pid }));
+        const rows = produtoIds.map(pid => ({ loja_id: lojaId, produto_id: pid }));
         const { data, error } = await sb().from('loja_produtos').insert(rows).select();
         if (error) throw error;
         return data;
     }
 
     // ── PERGUNTAS ────────────────────────────────────────────
+    // Colunas reais: id(text), etapa, pergunta, tipo_resposta, obrigatorio(boolean), condicional
 
     async function getPerguntas() {
-        const { data, error } = await sb().from('perguntas').select('*').order('ordem');
+        const { data, error } = await sb().from('perguntas').select('*').order('etapa, id');
         if (error) throw error;
-        return data;
+        return data || [];
     }
 
     async function updatePergunta(id, payload) {
@@ -188,11 +185,12 @@ window.NEXO.api = (() => {
     }
 
     // ── MOTIVOS ──────────────────────────────────────────────
+    // Colunas reais: id(text), contexto, motivo
 
     async function getMotivos() {
         const { data, error } = await sb().from('motivos').select('*').order('contexto, motivo');
         if (error) throw error;
-        return data;
+        return data || [];
     }
 
     async function createMotivo(payload) {
@@ -213,11 +211,12 @@ window.NEXO.api = (() => {
     }
 
     // ── CONFORMIDADE ─────────────────────────────────────────
+    // Colunas reais: id(bigint), ponto_medicao, faixa_min(numeric), faixa_max(numeric), unidade
 
     async function getConformidade() {
         const { data, error } = await sb().from('conformidade_temp').select('*').order('ponto_medicao');
         if (error) throw error;
-        return data;
+        return data || [];
     }
 
     async function updateConformidade(id, payload) {
@@ -231,19 +230,13 @@ window.NEXO.api = (() => {
     async function getStats() {
         const redeFilter = await _getRedeFilter();
 
-        // Conta redes, lojas, pessoas, produtos
         let lojasQuery = sb().from('lojas').select('id', { count: 'exact', head: true });
-        let pessoasQuery = sb().from('pessoas').select('id', { count: 'exact', head: true });
-
-        if (redeFilter) {
-            lojasQuery = lojasQuery.eq('id_rede', redeFilter);
-            // Pessoas filtradas por rede requer join
-        }
+        if (redeFilter) lojasQuery = lojasQuery.eq('id_rede', redeFilter);
 
         const [redesRes, lojasRes, pessoasRes, produtosRes] = await Promise.all([
             sb().from('redes').select('id', { count: 'exact', head: true }),
             lojasQuery,
-            pessoasQuery,
+            sb().from('pessoas').select('id', { count: 'exact', head: true }),
             sb().from('produtos').select('id', { count: 'exact', head: true })
         ]);
 
@@ -273,8 +266,6 @@ window.NEXO.api = (() => {
         if (!resp.ok) throw new Error(result.error || 'Erro ao criar usuário');
         return result;
     }
-
-    // ── Public API ───────────────────────────────────────────
 
     return {
         getRedes, getRede, createRede, updateRede, deleteRede,
