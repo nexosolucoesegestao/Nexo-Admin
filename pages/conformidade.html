@@ -1,9 +1,9 @@
-<!-- Conformidade — Gestão de faixas de temperatura -->
+<!-- Conformidade — corrigido para colunas reais -->
 
 <div class="page-header">
     <div>
         <h1>Conformidade</h1>
-        <p class="subtitle">Faixas de temperatura aceitáveis e metas de quebra</p>
+        <p class="subtitle">Faixas de temperatura aceitáveis por ponto de medição</p>
     </div>
 </div>
 
@@ -22,8 +22,8 @@
             <input type="hidden" id="conf-id">
             <div class="form-group mb-2"><label class="form-label">Ponto de Medição</label><input type="text" class="form-input" id="conf-ponto" disabled></div>
             <div class="form-row mb-2">
-                <div class="form-group"><label class="form-label">Temperatura Mín (°C)</label><input type="number" class="form-input" id="conf-min" step="0.5"></div>
-                <div class="form-group"><label class="form-label">Temperatura Máx (°C)</label><input type="number" class="form-input" id="conf-max" step="0.5"></div>
+                <div class="form-group"><label class="form-label">Mín (°C)</label><input type="number" class="form-input" id="conf-min" step="0.5"></div>
+                <div class="form-group"><label class="form-label">Máx (°C)</label><input type="number" class="form-input" id="conf-max" step="0.5"></div>
             </div>
             <div class="form-hint">Valores fora dessa faixa geram flag NÃO CONFORME automático no app.</div>
         </div>
@@ -40,31 +40,32 @@ window.initConformidade = async () => {
 
     async function load() {
         try { items = await NEXO.api.getConformidade(); render(); }
-        catch (err) { NEXO.ui.toast('Erro ao carregar.', 'error'); }
+        catch (err) { NEXO.ui.toast('Erro ao carregar.', 'error'); console.error(err); }
     }
 
     function render() {
         if (!items.length) { document.getElementById('conformidade-table-area').innerHTML = '<div class="empty-state"><div class="icon">🌡️</div><p>Nenhuma faixa cadastrada</p></div>'; return; }
         const rows = items.map(c => `<tr>
             <td><strong>${NEXO.ui.escapeHtml(c.ponto_medicao)}</strong></td>
-            <td style="text-align:center;">${c.temp_min ?? '—'}°C</td>
-            <td style="text-align:center;">${c.temp_max ?? '—'}°C</td>
-            <td style="text-align:center;"><span class="badge badge-success">${c.temp_min}°C a ${c.temp_max}°C</span></td>
+            <td style="text-align:center;">${c.faixa_min ?? '—'}°C</td>
+            <td style="text-align:center;">${c.faixa_max ?? '—'}°C</td>
+            <td style="text-align:center;">${NEXO.ui.escapeHtml(c.unidade || '°C')}</td>
+            <td style="text-align:center;"><span class="badge badge-success">${c.faixa_min}°C a ${c.faixa_max}°C</span></td>
             <td><button class="btn btn-ghost btn-sm" onclick="editConf('${c.id}')">✏️</button></td>
         </tr>`).join('');
-        document.getElementById('conformidade-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Ponto de Medição</th><th style="text-align:center">Mín</th><th style="text-align:center">Máx</th><th style="text-align:center">Faixa OK</th><th style="width:60px">Ação</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        document.getElementById('conformidade-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Ponto de Medição</th><th style="text-align:center">Mín</th><th style="text-align:center">Máx</th><th style="text-align:center">Unidade</th><th style="text-align:center">Faixa OK</th><th style="width:60px">Ação</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }
 
     const modal = document.getElementById('modal-conf');
     const closeModal = () => { modal.classList.remove('modal-visible'); setTimeout(() => modal.style.display = 'none', 250); };
 
     window.editConf = (id) => {
-        const c = items.find(x => x.id === id);
+        const c = items.find(x => String(x.id) === String(id));
         if (!c) return;
         document.getElementById('conf-id').value = c.id;
         document.getElementById('conf-ponto').value = c.ponto_medicao || '';
-        document.getElementById('conf-min').value = c.temp_min ?? '';
-        document.getElementById('conf-max').value = c.temp_max ?? '';
+        document.getElementById('conf-min').value = c.faixa_min ?? '';
+        document.getElementById('conf-max').value = c.faixa_max ?? '';
         modal.style.display = 'flex';
         requestAnimationFrame(() => modal.classList.add('modal-visible'));
     };
@@ -75,10 +76,10 @@ window.initConformidade = async () => {
     document.getElementById('modal-conf-save').onclick = async () => {
         const id = document.getElementById('conf-id').value;
         const payload = {
-            temp_min: parseFloat(document.getElementById('conf-min').value),
-            temp_max: parseFloat(document.getElementById('conf-max').value)
+            faixa_min: parseFloat(document.getElementById('conf-min').value),
+            faixa_max: parseFloat(document.getElementById('conf-max').value)
         };
-        if (isNaN(payload.temp_min) || isNaN(payload.temp_max)) { NEXO.ui.toast('Valores inválidos.', 'warning'); return; }
+        if (isNaN(payload.faixa_min) || isNaN(payload.faixa_max)) { NEXO.ui.toast('Valores inválidos.', 'warning'); return; }
         const btn = document.getElementById('modal-conf-save');
         NEXO.ui.btnLoading(btn, true);
         try {
