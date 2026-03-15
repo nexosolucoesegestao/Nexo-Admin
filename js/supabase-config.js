@@ -6,8 +6,8 @@
 // Para desenvolvimento, usar os valores abaixo.
 // ============================================================
 
-const SUPABASE_URL = 'https://SEU_PROJETO.supabase.co';
-const SUPABASE_ANON_KEY = 'SUA_ANON_KEY';
+const SUPABASE_URL = 'https://kkjfqltpykkuwshtfhow.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_x-ADwvaQzwBqIRSZuLKsuw_NWPS_qwC';
 
 // Inicializa o client Supabase com persistência de sessão
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
