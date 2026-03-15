@@ -1,0 +1,120 @@
+<!-- Motivos — CRUD completo -->
+
+<div class="page-header">
+    <div>
+        <h1>Motivos</h1>
+        <p class="subtitle">Lista fechada de motivos por contexto (ruptura, indisponibilidade, quebra, etc.)</p>
+    </div>
+    <button class="btn btn-primary" id="btn-novo-motivo">+ Novo Motivo</button>
+</div>
+
+<div class="flex-gap mb-2">
+    <select class="form-select" id="filtro-contexto" style="width:250px;">
+        <option value="">Todos os contextos</option>
+    </select>
+</div>
+
+<div class="card">
+    <div class="card-header"><h3 id="motivos-count">Carregando...</h3></div>
+    <div id="motivos-table-area">
+        <div class="loading-state"><div class="spinner"></div><span>Carregando...</span></div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-motivo" style="display:none;">
+    <div class="modal" style="max-width:460px;">
+        <div class="modal-header"><h3 id="modal-motivo-title">Novo Motivo</h3></div>
+        <div class="modal-body">
+            <input type="hidden" id="motivo-id">
+            <div class="form-group mb-2"><label class="form-label">Código ID</label><input type="text" class="form-input" id="motivo-codigo" placeholder="MOT-RUP-003"></div>
+            <div class="form-group mb-2"><label class="form-label">Contexto *</label>
+                <select class="form-select" id="motivo-contexto">
+                    <option value="">Selecione...</option>
+                    <option>Ruptura (Estoque)</option><option>Indisponibilidade (AT/AS)</option>
+                    <option>Quebra (Motivo)</option><option>Quebra (Destino)</option>
+                    <option>Ausência Pessoal</option>
+                </select>
+            </div>
+            <div class="form-group"><label class="form-label">Motivo *</label><input type="text" class="form-input" id="motivo-texto" placeholder="Ex: Atraso na entrega do fornecedor"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="modal-motivo-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="modal-motivo-save">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initMotivos = async () => {
+    let motivos = [];
+
+    async function load() {
+        try {
+            motivos = await NEXO.api.getMotivos();
+            const contextos = [...new Set(motivos.map(m => m.contexto).filter(Boolean))];
+            document.getElementById('filtro-contexto').innerHTML = `<option value="">Todos os contextos</option>` + contextos.map(c => `<option>${c}</option>`).join('');
+            render(motivos);
+        } catch (err) { NEXO.ui.toast('Erro ao carregar.', 'error'); }
+    }
+
+    function render(data) {
+        document.getElementById('motivos-count').textContent = `${data.length} motivo${data.length !== 1 ? 's' : ''}`;
+        if (!data.length) { document.getElementById('motivos-table-area').innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Nenhum motivo cadastrado</p></div>'; return; }
+        const contextColors = {
+            'Ruptura (Estoque)': 'badge-danger', 'Indisponibilidade (AT/AS)': 'badge-warning',
+            'Quebra (Motivo)': 'badge-info', 'Quebra (Destino)': 'badge-gold', 'Ausência Pessoal': 'badge-success'
+        };
+        const rows = data.map(m => `<tr>
+            <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted);">${NEXO.ui.escapeHtml(m.id_motivo || '—')}</td>
+            <td><span class="badge ${contextColors[m.contexto] || 'badge-info'}">${NEXO.ui.escapeHtml(m.contexto || '—')}</span></td>
+            <td><strong>${NEXO.ui.escapeHtml(m.motivo)}</strong></td>
+            <td><div class="flex-gap"><button class="btn btn-ghost btn-sm" onclick="editMotivo('${m.id}')">✏️</button><button class="btn btn-ghost btn-sm" onclick="removeMotivo('${m.id}','${NEXO.ui.escapeHtml(m.motivo)}')">🗑️</button></div></td>
+        </tr>`).join('');
+        document.getElementById('motivos-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>ID</th><th>Contexto</th><th>Motivo</th><th style="width:100px">Ações</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    const modal = document.getElementById('modal-motivo');
+    const openModal = (m = null) => {
+        document.getElementById('modal-motivo-title').textContent = m ? 'Editar Motivo' : 'Novo Motivo';
+        document.getElementById('motivo-id').value = m?.id || '';
+        document.getElementById('motivo-codigo').value = m?.id_motivo || '';
+        document.getElementById('motivo-contexto').value = m?.contexto || '';
+        document.getElementById('motivo-texto').value = m?.motivo || '';
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('modal-visible'));
+    };
+    const closeModal = () => { modal.classList.remove('modal-visible'); setTimeout(() => modal.style.display = 'none', 250); };
+
+    document.getElementById('btn-novo-motivo').onclick = () => openModal();
+    document.getElementById('modal-motivo-cancel').onclick = closeModal;
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    document.getElementById('modal-motivo-save').onclick = async () => {
+        const id = document.getElementById('motivo-id').value;
+        const contexto = document.getElementById('motivo-contexto').value;
+        const texto = document.getElementById('motivo-texto').value.trim();
+        if (!contexto || !texto) { NEXO.ui.toast('Contexto e motivo são obrigatórios.', 'warning'); return; }
+        const payload = { id_motivo: document.getElementById('motivo-codigo').value.trim() || null, contexto, motivo: texto };
+        const btn = document.getElementById('modal-motivo-save');
+        NEXO.ui.btnLoading(btn, true);
+        try {
+            id ? await NEXO.api.updateMotivo(id, payload) : await NEXO.api.createMotivo(payload);
+            NEXO.ui.toast(id ? 'Atualizado.' : 'Criado.', 'success');
+            closeModal(); await load();
+        } catch (err) { NEXO.ui.toast('Erro: ' + err.message, 'error'); }
+        finally { NEXO.ui.btnLoading(btn, false); }
+    };
+
+    window.editMotivo = (id) => { const m = motivos.find(x => x.id === id); if (m) openModal(m); };
+    window.removeMotivo = (id, nome) => {
+        NEXO.ui.confirm('Excluir', `Excluir "<strong>${nome}</strong>"?`, async () => {
+            try { await NEXO.api.deleteMotivo(id); NEXO.ui.toast('Excluído.', 'success'); await load(); }
+            catch (err) { NEXO.ui.toast('Erro: ' + err.message, 'error'); }
+        });
+    };
+
+    document.getElementById('filtro-contexto').onchange = (e) => render(e.target.value ? motivos.filter(m => m.contexto === e.target.value) : motivos);
+    await load();
+};
+</script>

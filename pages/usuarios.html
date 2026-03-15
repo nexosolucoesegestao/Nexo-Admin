@@ -1,0 +1,110 @@
+<!-- Usuários Admin — Apenas super_admin -->
+
+<div class="page-header">
+    <div>
+        <h1>Usuários Admin</h1>
+        <p class="subtitle">Gerencie acessos ao painel de administração e ao app operacional</p>
+    </div>
+    <button class="btn btn-primary" id="btn-novo-usuario">+ Novo Usuário</button>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header"><h3>Criar Novo Usuário</h3></div>
+    <div style="display:none;padding:0 1.5rem 1.5rem;" id="form-usuario-area">
+        <div class="form-row mb-2">
+            <div class="form-group" style="flex:2;"><label class="form-label">Email *</label><input type="email" class="form-input" id="usr-email" placeholder="usuario@email.com"></div>
+            <div class="form-group" style="flex:1;"><label class="form-label">Senha *</label><input type="text" class="form-input" id="usr-senha" placeholder="Min. 6 caracteres"></div>
+        </div>
+        <div class="form-row mb-2">
+            <div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" id="usr-nome" placeholder="Nome completo"></div>
+            <div class="form-group"><label class="form-label">Role *</label>
+                <select class="form-select" id="usr-role">
+                    <option value="">Selecione...</option>
+                    <option value="super_admin">Super Admin (NEXO)</option>
+                    <option value="gestor_rede">Gestor de Rede</option>
+                    <option value="encarregado">Encarregado (App OPS)</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row mb-2" id="usr-vinculo-area" style="display:none;">
+            <div class="form-group"><label class="form-label">Rede</label><select class="form-select" id="usr-rede"><option value="">—</option></select></div>
+            <div class="form-group" id="usr-loja-group" style="display:none;"><label class="form-label">Loja</label><select class="form-select" id="usr-loja"><option value="">—</option></select></div>
+        </div>
+        <div class="flex-gap" style="justify-content:flex-end;">
+            <button class="btn btn-ghost" id="btn-cancel-usuario">Cancelar</button>
+            <button class="btn btn-primary" id="btn-salvar-usuario">Criar Usuário</button>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h3>Instruções</h3></div>
+    <div style="padding:0 1.5rem 1.5rem; font-size:0.85rem; color:var(--text-secondary); line-height:1.8;">
+        <p><strong>Super Admin:</strong> Acesso total ao painel. Pode criar redes, lojas, pessoas, produtos e outros admins.</p>
+        <p><strong>Gestor de Rede:</strong> Vê apenas as lojas da sua rede. Pode gerenciar pessoas e vínculos.</p>
+        <p><strong>Encarregado:</strong> Acesso ao app NEXO OPS (mobile). Login com email/senha. Vê apenas sua loja.</p>
+        <p style="margin-top:0.75rem; color:var(--gold-400);">Os usuários recebem acesso imediato — não é enviado email de confirmação.</p>
+    </div>
+</div>
+
+<script>
+window.initUsuarios = async () => {
+    let redes = [], lojas = [];
+    const formArea = document.getElementById('form-usuario-area');
+
+    try {
+        [redes, lojas] = await Promise.all([NEXO.api.getRedes(), NEXO.api.getLojas()]);
+        document.getElementById('usr-rede').innerHTML = `<option value="">—</option>` + redes.map(r => `<option value="${r.id}">${NEXO.ui.escapeHtml(r.nome)}</option>`).join('');
+        document.getElementById('usr-loja').innerHTML = `<option value="">—</option>` + lojas.map(l => `<option value="${l.id}">${NEXO.ui.escapeHtml(l.nome)}</option>`).join('');
+    } catch {}
+
+    document.getElementById('btn-novo-usuario').onclick = () => {
+        formArea.style.display = '';
+        document.getElementById('usr-email').focus();
+    };
+    document.getElementById('btn-cancel-usuario').onclick = () => { formArea.style.display = 'none'; };
+
+    const roleSelect = document.getElementById('usr-role');
+    const vinculoArea = document.getElementById('usr-vinculo-area');
+    const lojaGroup = document.getElementById('usr-loja-group');
+
+    roleSelect.onchange = () => {
+        const role = roleSelect.value;
+        vinculoArea.style.display = (role === 'gestor_rede' || role === 'encarregado') ? '' : 'none';
+        lojaGroup.style.display = role === 'encarregado' ? '' : 'none';
+    };
+
+    document.getElementById('btn-salvar-usuario').onclick = async () => {
+        const email = document.getElementById('usr-email').value.trim();
+        const senha = document.getElementById('usr-senha').value;
+        const nome = document.getElementById('usr-nome').value.trim();
+        const role = document.getElementById('usr-role').value;
+
+        if (!email || !senha || !nome || !role) { NEXO.ui.toast('Preencha todos os campos obrigatórios.', 'warning'); return; }
+        if (senha.length < 6) { NEXO.ui.toast('Senha deve ter no mínimo 6 caracteres.', 'warning'); return; }
+
+        const metadata = { role, nome };
+        if (role === 'gestor_rede' || role === 'encarregado') {
+            metadata.id_rede = document.getElementById('usr-rede').value || null;
+        }
+        if (role === 'encarregado') {
+            metadata.id_loja = document.getElementById('usr-loja').value || null;
+        }
+
+        const btn = document.getElementById('btn-salvar-usuario');
+        NEXO.ui.btnLoading(btn, true, 'Criando...');
+        try {
+            const result = await NEXO.api.createAdminUser(email, senha, metadata);
+            NEXO.ui.toast(`Usuário ${result.user.email} criado com sucesso!`, 'success');
+            formArea.style.display = 'none';
+            // Limpa form
+            ['usr-email', 'usr-senha', 'usr-nome'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('usr-role').value = '';
+        } catch (err) {
+            NEXO.ui.toast('Erro: ' + err.message, 'error');
+        } finally {
+            NEXO.ui.btnLoading(btn, false);
+        }
+    };
+};
+</script>

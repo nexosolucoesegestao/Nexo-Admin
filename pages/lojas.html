@@ -1,0 +1,158 @@
+<!-- Lojas — CRUD completo -->
+
+<div class="page-header">
+    <div>
+        <h1>Lojas</h1>
+        <p class="subtitle">Pontos de venda monitorados pelo NEXO</p>
+    </div>
+    <button class="btn btn-primary" id="btn-nova-loja">+ Nova Loja</button>
+</div>
+
+<div class="flex-gap mb-2">
+    <select class="form-select" id="filtro-rede" style="width:220px;">
+        <option value="">Todas as redes</option>
+    </select>
+    <div class="search-bar" style="flex:1; max-width:280px;">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="form-input" id="search-lojas" placeholder="Buscar loja..." style="padding-left:2.5rem;">
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h3 id="lojas-count">Carregando...</h3></div>
+    <div id="lojas-table-area">
+        <div class="loading-state"><div class="spinner"></div><span>Carregando lojas...</span></div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-loja" style="display:none;">
+    <div class="modal" style="max-width:560px;">
+        <div class="modal-header"><h3 id="modal-loja-title">Nova Loja</h3></div>
+        <div class="modal-body">
+            <input type="hidden" id="loja-id">
+            <div class="form-row mb-2">
+                <div class="form-group" style="flex:2"><label class="form-label">Nome *</label><input type="text" class="form-input" id="loja-nome" placeholder="Ex: Filial Centro"></div>
+                <div class="form-group" style="flex:1"><label class="form-label">Código</label><input type="text" class="form-input" id="loja-codigo" placeholder="LJ-002"></div>
+            </div>
+            <div class="form-group mb-2"><label class="form-label">Rede *</label><select class="form-select" id="loja-rede"><option value="">Selecione...</option></select></div>
+            <div class="form-group mb-2"><label class="form-label">Endereço</label><input type="text" class="form-input" id="loja-endereco" placeholder="Rua, número — Bairro"></div>
+            <div class="form-row mb-2">
+                <div class="form-group"><label class="form-label">Cidade</label><input type="text" class="form-input" id="loja-cidade" placeholder="São Paulo"></div>
+                <div class="form-group"><label class="form-label">UF</label>
+                    <select class="form-select" id="loja-uf"><option value="">--</option><option>AC</option><option>AL</option><option>AM</option><option>AP</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MG</option><option>MS</option><option>MT</option><option>PA</option><option>PB</option><option>PE</option><option>PI</option><option>PR</option><option>RJ</option><option>RN</option><option>RO</option><option>RR</option><option>RS</option><option>SC</option><option selected>SP</option><option>SE</option><option>TO</option></select>
+                </div>
+            </div>
+            <div class="form-row mb-2">
+                <div class="form-group"><label class="form-label">Telefone</label><input type="text" class="form-input" id="loja-telefone" placeholder="(11) 3333-4444"></div>
+                <div class="form-group"><label class="form-label">Responsável</label><input type="text" class="form-input" id="loja-responsavel" placeholder="Nome do gerente"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Meta Quebra (kg/sem)</label><input type="number" class="form-input" id="loja-meta-quebra" placeholder="10" step="0.5" min="0"></div>
+                <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="loja-ativo"><option value="true">Ativa</option><option value="false">Inativa</option></select></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="modal-loja-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="modal-loja-save">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initLojas = async () => {
+    let lojas = [], redes = [];
+
+    async function load() {
+        try {
+            [lojas, redes] = await Promise.all([NEXO.api.getLojas(), NEXO.api.getRedes().catch(() => [])]);
+            const opts = redes.map(r => `<option value="${r.id}">${NEXO.ui.escapeHtml(r.nome)}</option>`).join('');
+            document.getElementById('filtro-rede').innerHTML = `<option value="">Todas as redes</option>${opts}`;
+            document.getElementById('loja-rede').innerHTML = `<option value="">Selecione...</option>${opts}`;
+            render(lojas);
+        } catch (err) { NEXO.ui.toast('Erro ao carregar lojas.', 'error'); }
+    }
+
+    function render(data) {
+        document.getElementById('lojas-count').textContent = `${data.length} loja${data.length !== 1 ? 's' : ''}`;
+        if (!data.length) { document.getElementById('lojas-table-area').innerHTML = '<div class="empty-state"><div class="icon">🏪</div><p>Nenhuma loja cadastrada</p></div>'; return; }
+        const rows = data.map(l => `<tr>
+            <td><strong>${NEXO.ui.escapeHtml(l.nome)}</strong></td>
+            <td>${NEXO.ui.escapeHtml(l.codigo || '—')}</td>
+            <td>${NEXO.ui.escapeHtml(l.redes?.nome || '—')}</td>
+            <td>${NEXO.ui.escapeHtml(l.cidade || '')}${l.uf ? '/' + l.uf : ''}</td>
+            <td>${NEXO.ui.escapeHtml(l.responsavel || '—')}</td>
+            <td>${l.ativo !== false ? '<span class="badge badge-success">Ativa</span>' : '<span class="badge badge-danger">Inativa</span>'}</td>
+            <td><div class="flex-gap"><button class="btn btn-ghost btn-sm" onclick="editLoja('${l.id}')">✏️</button><button class="btn btn-ghost btn-sm" onclick="removeLoja('${l.id}','${NEXO.ui.escapeHtml(l.nome)}')">🗑️</button></div></td>
+        </tr>`).join('');
+        document.getElementById('lojas-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Nome</th><th>Código</th><th>Rede</th><th>Cidade/UF</th><th>Responsável</th><th>Status</th><th style="width:100px">Ações</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    const modal = document.getElementById('modal-loja');
+    const openModal = (l = null) => {
+        document.getElementById('modal-loja-title').textContent = l ? 'Editar Loja' : 'Nova Loja';
+        document.getElementById('loja-id').value = l?.id || '';
+        document.getElementById('loja-nome').value = l?.nome || '';
+        document.getElementById('loja-codigo').value = l?.codigo || '';
+        document.getElementById('loja-rede').value = l?.id_rede || '';
+        document.getElementById('loja-endereco').value = l?.endereco || '';
+        document.getElementById('loja-cidade').value = l?.cidade || '';
+        document.getElementById('loja-uf').value = l?.uf || 'SP';
+        document.getElementById('loja-telefone').value = l?.telefone || '';
+        document.getElementById('loja-responsavel').value = l?.responsavel || '';
+        document.getElementById('loja-meta-quebra').value = l?.meta_quebra_kg ?? 10;
+        document.getElementById('loja-ativo').value = l?.ativo !== false ? 'true' : 'false';
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('modal-visible'));
+    };
+    const closeModal = () => { modal.classList.remove('modal-visible'); setTimeout(() => modal.style.display = 'none', 250); };
+
+    document.getElementById('btn-nova-loja').onclick = () => openModal();
+    document.getElementById('modal-loja-cancel').onclick = closeModal;
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    document.getElementById('modal-loja-save').onclick = async () => {
+        const id = document.getElementById('loja-id').value;
+        const nome = document.getElementById('loja-nome').value.trim();
+        const idRede = document.getElementById('loja-rede').value;
+        if (!nome) { NEXO.ui.toast('Nome obrigatório.', 'warning'); return; }
+        if (!idRede) { NEXO.ui.toast('Selecione uma rede.', 'warning'); return; }
+        const payload = {
+            nome, codigo: document.getElementById('loja-codigo').value.trim() || null, id_rede: idRede,
+            endereco: document.getElementById('loja-endereco').value.trim() || null,
+            cidade: document.getElementById('loja-cidade').value.trim() || null,
+            uf: document.getElementById('loja-uf').value || null,
+            telefone: document.getElementById('loja-telefone').value.trim() || null,
+            responsavel: document.getElementById('loja-responsavel').value.trim() || null,
+            meta_quebra_kg: parseFloat(document.getElementById('loja-meta-quebra').value) || 10,
+            ativo: document.getElementById('loja-ativo').value === 'true'
+        };
+        const btn = document.getElementById('modal-loja-save');
+        NEXO.ui.btnLoading(btn, true, 'Salvando...');
+        try {
+            id ? await NEXO.api.updateLoja(id, payload) : await NEXO.api.createLoja(payload);
+            NEXO.ui.toast(id ? 'Loja atualizada.' : 'Loja criada.', 'success');
+            closeModal(); await load();
+        } catch (err) { NEXO.ui.toast('Erro: ' + err.message, 'error'); }
+        finally { NEXO.ui.btnLoading(btn, false); }
+    };
+
+    window.editLoja = (id) => { const l = lojas.find(x => x.id === id); if (l) openModal(l); };
+    window.removeLoja = (id, nome) => {
+        NEXO.ui.confirm('Excluir Loja', `Excluir "<strong>${nome}</strong>"?`, async () => {
+            try { await NEXO.api.deleteLoja(id); NEXO.ui.toast('Excluída.', 'success'); await load(); }
+            catch (err) { NEXO.ui.toast('Erro: ' + err.message, 'error'); }
+        });
+    };
+
+    document.getElementById('filtro-rede').onchange = (e) => render(e.target.value ? lojas.filter(l => l.id_rede === e.target.value) : lojas);
+    document.getElementById('search-lojas').addEventListener('input', NEXO.ui.debounce((e) => {
+        const q = e.target.value.toLowerCase(), r = document.getElementById('filtro-rede').value;
+        let f = r ? lojas.filter(l => l.id_rede === r) : lojas;
+        if (q) f = f.filter(l => l.nome.toLowerCase().includes(q) || (l.codigo||'').toLowerCase().includes(q) || (l.responsavel||'').toLowerCase().includes(q));
+        render(f);
+    }, 200));
+
+    await load();
+};
+</script>

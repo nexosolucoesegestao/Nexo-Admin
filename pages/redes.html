@@ -1,0 +1,220 @@
+<!-- Redes — CRUD completo (apenas super_admin) -->
+
+<div class="page-header">
+    <div>
+        <h1>Redes</h1>
+        <p class="subtitle">Grupos de supermercados gerenciados pelo NEXO</p>
+    </div>
+    <button class="btn btn-primary" id="btn-nova-rede">+ Nova Rede</button>
+</div>
+
+<!-- Lista -->
+<div class="card">
+    <div class="card-header">
+        <h3 id="redes-count">Carregando...</h3>
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="form-input" id="search-redes" placeholder="Buscar rede..." style="padding-left:2.5rem; width:220px;">
+        </div>
+    </div>
+    <div id="redes-table-area">
+        <div class="loading-state"><div class="spinner"></div><span>Carregando redes...</span></div>
+    </div>
+</div>
+
+<!-- Modal: Form Rede -->
+<div class="modal-overlay" id="modal-rede" style="display:none;">
+    <div class="modal" style="max-width:500px;">
+        <div class="modal-header">
+            <h3 id="modal-rede-title">Nova Rede</h3>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="rede-id">
+            <div class="form-group mb-2">
+                <label class="form-label">Nome da Rede *</label>
+                <input type="text" class="form-input" id="rede-nome" placeholder="Ex: Supermercados União">
+            </div>
+            <div class="form-group mb-2">
+                <label class="form-label">CNPJ</label>
+                <input type="text" class="form-input" id="rede-cnpj" placeholder="00.000.000/0000-00">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Contato</label>
+                    <input type="text" class="form-input" id="rede-contato" placeholder="Nome do responsável">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telefone</label>
+                    <input type="text" class="form-input" id="rede-telefone" placeholder="(11) 99999-0000">
+                </div>
+            </div>
+            <div class="form-group mt-2">
+                <label class="form-label">Observações</label>
+                <textarea class="form-textarea" id="rede-obs" rows="2" placeholder="Anotações internas..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="modal-rede-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="modal-rede-save">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initRedes = async () => {
+    let redes = [];
+
+    // ── Load ──
+    async function load() {
+        try {
+            redes = await NEXO.api.getRedes();
+            render(redes);
+        } catch (err) {
+            NEXO.ui.toast('Erro ao carregar redes.', 'error');
+            console.error(err);
+        }
+    }
+
+    // ── Render Table ──
+    function render(data) {
+        document.getElementById('redes-count').textContent = `${data.length} rede${data.length !== 1 ? 's' : ''}`;
+
+        if (data.length === 0) {
+            document.getElementById('redes-table-area').innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">🏢</div>
+                    <p>Nenhuma rede cadastrada</p>
+                    <p style="font-size:0.8rem;">Clique em "+ Nova Rede" para começar.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const rows = data.map(r => `
+            <tr>
+                <td><strong>${NEXO.ui.escapeHtml(r.nome)}</strong></td>
+                <td>${NEXO.ui.escapeHtml(r.cnpj || '—')}</td>
+                <td>${NEXO.ui.escapeHtml(r.contato || '—')}</td>
+                <td>${NEXO.ui.escapeHtml(r.telefone || '—')}</td>
+                <td>${NEXO.ui.formatDate(r.created_at)}</td>
+                <td>
+                    <div class="flex-gap">
+                        <button class="btn btn-ghost btn-sm" onclick="editRede('${r.id}')">✏️</button>
+                        <button class="btn btn-ghost btn-sm" onclick="removeRede('${r.id}', '${NEXO.ui.escapeHtml(r.nome)}')">🗑️</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        document.getElementById('redes-table-area').innerHTML = `
+            <div class="data-table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CNPJ</th>
+                            <th>Contato</th>
+                            <th>Telefone</th>
+                            <th>Criado em</th>
+                            <th style="width:100px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // ── Modal ──
+    const modal = document.getElementById('modal-rede');
+    const openModal = (rede = null) => {
+        document.getElementById('modal-rede-title').textContent = rede ? 'Editar Rede' : 'Nova Rede';
+        document.getElementById('rede-id').value = rede?.id || '';
+        document.getElementById('rede-nome').value = rede?.nome || '';
+        document.getElementById('rede-cnpj').value = rede?.cnpj || '';
+        document.getElementById('rede-contato').value = rede?.contato || '';
+        document.getElementById('rede-telefone').value = rede?.telefone || '';
+        document.getElementById('rede-obs').value = rede?.observacoes || '';
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('modal-visible'));
+        document.getElementById('rede-nome').focus();
+    };
+
+    const closeModal = () => {
+        modal.classList.remove('modal-visible');
+        setTimeout(() => modal.style.display = 'none', 250);
+    };
+
+    // ── Events ──
+    document.getElementById('btn-nova-rede').onclick = () => openModal();
+    document.getElementById('modal-rede-cancel').onclick = closeModal;
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    document.getElementById('modal-rede-save').onclick = async () => {
+        const id = document.getElementById('rede-id').value;
+        const nome = document.getElementById('rede-nome').value.trim();
+        if (!nome) { NEXO.ui.toast('Nome é obrigatório.', 'warning'); return; }
+
+        const payload = {
+            nome,
+            cnpj: document.getElementById('rede-cnpj').value.trim() || null,
+            contato: document.getElementById('rede-contato').value.trim() || null,
+            telefone: document.getElementById('rede-telefone').value.trim() || null,
+            observacoes: document.getElementById('rede-obs').value.trim() || null
+        };
+
+        const btn = document.getElementById('modal-rede-save');
+        NEXO.ui.btnLoading(btn, true, 'Salvando...');
+
+        try {
+            if (id) {
+                await NEXO.api.updateRede(id, payload);
+                NEXO.ui.toast('Rede atualizada.', 'success');
+            } else {
+                await NEXO.api.createRede(payload);
+                NEXO.ui.toast('Rede criada.', 'success');
+            }
+            closeModal();
+            await load();
+        } catch (err) {
+            NEXO.ui.toast('Erro ao salvar: ' + err.message, 'error');
+        } finally {
+            NEXO.ui.btnLoading(btn, false);
+        }
+    };
+
+    // ── Edit / Delete (global scope for onclick) ──
+    window.editRede = (id) => {
+        const rede = redes.find(r => r.id === id);
+        if (rede) openModal(rede);
+    };
+
+    window.removeRede = (id, nome) => {
+        NEXO.ui.confirm('Excluir Rede', `Tem certeza que deseja excluir "<strong>${nome}</strong>"? Lojas e pessoas vinculadas também serão afetados.`, async () => {
+            try {
+                await NEXO.api.deleteRede(id);
+                NEXO.ui.toast('Rede excluída.', 'success');
+                await load();
+            } catch (err) {
+                NEXO.ui.toast('Erro ao excluir: ' + err.message, 'error');
+            }
+        });
+    };
+
+    // ── Search ──
+    document.getElementById('search-redes').addEventListener('input',
+        NEXO.ui.debounce((e) => {
+            const q = e.target.value.toLowerCase();
+            const filtered = redes.filter(r =>
+                r.nome.toLowerCase().includes(q) ||
+                (r.cnpj || '').includes(q) ||
+                (r.contato || '').toLowerCase().includes(q)
+            );
+            render(filtered);
+        }, 200)
+    );
+
+    // ── Init ──
+    await load();
+};
+</script>

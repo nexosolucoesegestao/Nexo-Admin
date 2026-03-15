@@ -1,0 +1,119 @@
+<!-- Perguntas — Gestão (edição inline, não cria/deleta) -->
+
+<div class="page-header">
+    <div>
+        <h1>Perguntas</h1>
+        <p class="subtitle">Configure as perguntas dos módulos de coleta do app</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h3 id="perguntas-count">Carregando...</h3></div>
+    <div id="perguntas-table-area">
+        <div class="loading-state"><div class="spinner"></div><span>Carregando...</span></div>
+    </div>
+</div>
+
+<!-- Modal Edição -->
+<div class="modal-overlay" id="modal-pergunta" style="display:none;">
+    <div class="modal" style="max-width:520px;">
+        <div class="modal-header"><h3>Editar Pergunta</h3></div>
+        <div class="modal-body">
+            <input type="hidden" id="perg-id">
+            <div class="form-group mb-2"><label class="form-label">ID</label><input type="text" class="form-input" id="perg-codigo" disabled></div>
+            <div class="form-group mb-2"><label class="form-label">Etapa / Módulo</label><input type="text" class="form-input" id="perg-etapa" disabled></div>
+            <div class="form-group mb-2"><label class="form-label">Texto da Pergunta *</label><textarea class="form-textarea" id="perg-texto" rows="2"></textarea></div>
+            <div class="form-row mb-2">
+                <div class="form-group"><label class="form-label">Tipo de Resposta</label>
+                    <select class="form-select" id="perg-tipo"><option>Sim/Nao</option><option>Numero</option><option>Foto obrigatoria</option><option>Foto</option><option>Escolha unica</option><option>Selecao multipla</option><option>Texto</option></select>
+                </div>
+                <div class="form-group"><label class="form-label">Ordem</label>
+                    <input type="number" class="form-input" id="perg-ordem" min="0" step="1">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Obrigatória</label>
+                    <select class="form-select" id="perg-obrigatoria"><option value="true">Sim</option><option value="false">Não</option></select>
+                </div>
+                <div class="form-group"><label class="form-label">Ativa</label>
+                    <select class="form-select" id="perg-ativa"><option value="true">Sim</option><option value="false">Não</option></select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="modal-perg-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="modal-perg-save">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initPerguntas = async () => {
+    let perguntas = [];
+
+    async function load() {
+        try { perguntas = await NEXO.api.getPerguntas(); render(perguntas); }
+        catch (err) { NEXO.ui.toast('Erro ao carregar.', 'error'); }
+    }
+
+    function render(data) {
+        document.getElementById('perguntas-count').textContent = `${data.length} pergunta${data.length !== 1 ? 's' : ''}`;
+        if (!data.length) { document.getElementById('perguntas-table-area').innerHTML = '<div class="empty-state"><div class="icon">❓</div><p>Nenhuma pergunta cadastrada</p></div>'; return; }
+        const etapaColors = { 'Check-in': 'badge-gold', 'Quadro': 'badge-info', 'Ruptura': 'badge-danger', 'Quebra': 'badge-warning', 'Temperatura': 'badge-success' };
+        const rows = data.map(p => `<tr>
+            <td style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted);">${NEXO.ui.escapeHtml(p.id_pergunta || '—')}</td>
+            <td><span class="badge ${etapaColors[p.etapa] || 'badge-info'}">${NEXO.ui.escapeHtml(p.etapa || '—')}</span></td>
+            <td>${NEXO.ui.escapeHtml(p.pergunta)}</td>
+            <td style="font-size:0.8rem;">${NEXO.ui.escapeHtml(p.tipo_resposta || '—')}</td>
+            <td style="text-align:center;">${p.ordem ?? '—'}</td>
+            <td style="text-align:center;">${p.ativo !== false ? '✅' : '❌'}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="editPergunta('${p.id}')">✏️</button></td>
+        </tr>`).join('');
+        document.getElementById('perguntas-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>ID</th><th>Etapa</th><th>Pergunta</th><th>Tipo</th><th style="text-align:center">Ordem</th><th style="text-align:center">Ativa</th><th style="width:60px">Ação</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    const modal = document.getElementById('modal-pergunta');
+    const closeModal = () => { modal.classList.remove('modal-visible'); setTimeout(() => modal.style.display = 'none', 250); };
+
+    window.editPergunta = (id) => {
+        const p = perguntas.find(x => x.id === id);
+        if (!p) return;
+        document.getElementById('perg-id').value = p.id;
+        document.getElementById('perg-codigo').value = p.id_pergunta || '';
+        document.getElementById('perg-etapa').value = p.etapa || '';
+        document.getElementById('perg-texto').value = p.pergunta || '';
+        document.getElementById('perg-tipo').value = p.tipo_resposta || '';
+        document.getElementById('perg-ordem').value = p.ordem ?? 0;
+        document.getElementById('perg-obrigatoria').value = p.obrigatoria !== false ? 'true' : 'false';
+        document.getElementById('perg-ativa').value = p.ativo !== false ? 'true' : 'false';
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('modal-visible'));
+    };
+
+    document.getElementById('modal-perg-cancel').onclick = closeModal;
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    document.getElementById('modal-perg-save').onclick = async () => {
+        const id = document.getElementById('perg-id').value;
+        const texto = document.getElementById('perg-texto').value.trim();
+        if (!texto) { NEXO.ui.toast('Texto obrigatório.', 'warning'); return; }
+        const payload = {
+            pergunta: texto,
+            tipo_resposta: document.getElementById('perg-tipo').value,
+            ordem: parseInt(document.getElementById('perg-ordem').value) || 0,
+            obrigatoria: document.getElementById('perg-obrigatoria').value === 'true',
+            ativo: document.getElementById('perg-ativa').value === 'true'
+        };
+        const btn = document.getElementById('modal-perg-save');
+        NEXO.ui.btnLoading(btn, true);
+        try {
+            await NEXO.api.updatePergunta(id, payload);
+            NEXO.ui.toast('Pergunta atualizada.', 'success');
+            closeModal(); await load();
+        } catch (err) { NEXO.ui.toast('Erro: ' + err.message, 'error'); }
+        finally { NEXO.ui.btnLoading(btn, false); }
+    };
+
+    await load();
+};
+</script>

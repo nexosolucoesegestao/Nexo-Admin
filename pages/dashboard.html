@@ -1,0 +1,64 @@
+<!-- Dashboard — carregado via router no page-container -->
+
+<div class="page-header">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="subtitle">Visão geral da operação NEXO</p>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid" id="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Redes</div>
+        <div class="stat-value gold" id="stat-redes">—</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Lojas</div>
+        <div class="stat-value" id="stat-lojas">—</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Pessoas</div>
+        <div class="stat-value" id="stat-pessoas">—</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Produtos</div>
+        <div class="stat-value" id="stat-produtos">—</div>
+    </div>
+</div>
+
+<!-- Quick Access -->
+<div class="card">
+    <div class="card-header">
+        <h3>Acesso Rápido</h3>
+    </div>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:0.75rem;">
+        <a href="#/lojas" class="btn btn-secondary" style="justify-content:flex-start;">
+            🏪 Gerenciar Lojas
+        </a>
+        <a href="#/pessoas" class="btn btn-secondary" style="justify-content:flex-start;">
+            👥 Gerenciar Pessoas
+        </a>
+        <a href="#/vinculos" class="btn btn-secondary" style="justify-content:flex-start;">
+            🔗 Vínculos Loja ↔ Produto
+        </a>
+        <a href="#/perguntas" class="btn btn-secondary" style="justify-content:flex-start;">
+            ❓ Configurar Perguntas
+        </a>
+    </div>
+</div>
+
+<script>
+window.initDashboard = async () => {
+    try {
+        const stats = await NEXO.api.getStats();
+        document.getElementById('stat-redes').textContent = stats.redes;
+        document.getElementById('stat-lojas').textContent = stats.lojas;
+        document.getElementById('stat-pessoas').textContent = stats.pessoas;
+        document.getElementById('stat-produtos').textContent = stats.produtos;
+    } catch (err) {
+        console.error('[Dashboard]', err);
+        NEXO.ui.toast('Erro ao carregar dados.', 'error');
+    }
+};
+</script>

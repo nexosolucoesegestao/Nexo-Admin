@@ -1,0 +1,129 @@
+<!-- Vínculos Loja ↔ Produtos -->
+
+<div class="page-header">
+    <div>
+        <h1>Loja ↔ Produtos</h1>
+        <p class="subtitle">Defina quais cortes cada loja monitora na auditoria diária</p>
+    </div>
+</div>
+
+<div class="form-group mb-2" style="max-width:320px;">
+    <label class="form-label">Selecione a Loja</label>
+    <select class="form-select" id="vinculo-loja"><option value="">Selecione uma loja...</option></select>
+</div>
+
+<div id="vinculo-area" style="display:none;">
+    <div class="card">
+        <div class="card-header">
+            <h3 id="vinculo-count">0 produtos selecionados</h3>
+            <div class="flex-gap">
+                <button class="btn btn-ghost btn-sm" id="btn-select-basicos">Selecionar Básicos</button>
+                <button class="btn btn-ghost btn-sm" id="btn-select-all">Selecionar Todos</button>
+                <button class="btn btn-ghost btn-sm" id="btn-deselect-all">Limpar</button>
+            </div>
+        </div>
+        <div id="vinculo-grid" style="padding:0 1rem 1rem;"></div>
+        <div style="padding:1rem; border-top:1px solid var(--border-default); text-align:right;">
+            <button class="btn btn-primary" id="btn-salvar-vinculos">Salvar Vínculos</button>
+        </div>
+    </div>
+</div>
+
+<div id="vinculo-empty" class="empty-state" style="margin-top:2rem;">
+    <div class="icon">🔗</div>
+    <p>Selecione uma loja para gerenciar os vínculos</p>
+</div>
+
+<script>
+window.initVinculos = async () => {
+    let produtos = [], vinculos = [], selectedIds = new Set();
+
+    const lojas = await NEXO.api.getLojas();
+    const opts = lojas.map(l => `<option value="${l.id}">${NEXO.ui.escapeHtml(l.nome)}</option>`).join('');
+    document.getElementById('vinculo-loja').innerHTML = `<option value="">Selecione uma loja...</option>${opts}`;
+
+    produtos = await NEXO.api.getProdutos();
+
+    function renderGrid() {
+        const grouped = {};
+        produtos.forEach(p => {
+            if (!grouped[p.proteina]) grouped[p.proteina] = [];
+            grouped[p.proteina].push(p);
+        });
+
+        const icons = { 'Bovino': '🐂', 'Suino': '🐷', 'Aves': '🐔' };
+        let html = '';
+        for (const [prot, items] of Object.entries(grouped)) {
+            html += `<div style="margin-bottom:1rem;"><h4 style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.5rem;">${icons[prot] || ''} ${prot}</h4>`;
+            html += `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:0.5rem;">`;
+            items.forEach(p => {
+                const checked = selectedIds.has(p.id) ? 'checked' : '';
+                const cls = p.classificacao === 'Basico' ? 'badge-success' : 'badge-info';
+                html += `<label style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.6rem;background:var(--surface-elevated);border-radius:var(--radius-sm);cursor:pointer;font-size:0.85rem;border:1px solid ${selectedIds.has(p.id) ? 'var(--gold-500)' : 'var(--border-default)'}; transition:border-color 0.15s;">
+                    <input type="checkbox" value="${p.id}" ${checked} class="vinculo-check" style="accent-color:var(--gold-500);">
+                    <span>${NEXO.ui.escapeHtml(p.corte_pai)}</span>
+                    <span class="badge ${cls}" style="margin-left:auto;font-size:0.6rem;">${p.classificacao === 'Basico' ? 'B' : 'C'}</span>
+                </label>`;
+            });
+            html += `</div></div>`;
+        }
+        document.getElementById('vinculo-grid').innerHTML = html;
+        updateCount();
+
+        // Checkbox events
+        document.querySelectorAll('.vinculo-check').forEach(cb => {
+            cb.onchange = () => {
+                cb.checked ? selectedIds.add(cb.value) : selectedIds.delete(cb.value);
+                cb.closest('label').style.borderColor = cb.checked ? 'var(--gold-500)' : 'var(--border-default)';
+                updateCount();
+            };
+        });
+    }
+
+    function updateCount() {
+        document.getElementById('vinculo-count').textContent = `${selectedIds.size} produto${selectedIds.size !== 1 ? 's' : ''} selecionado${selectedIds.size !== 1 ? 's' : ''}`;
+    }
+
+    document.getElementById('vinculo-loja').onchange = async (e) => {
+        const lojaId = e.target.value;
+        if (!lojaId) {
+            document.getElementById('vinculo-area').style.display = 'none';
+            document.getElementById('vinculo-empty').style.display = '';
+            return;
+        }
+        document.getElementById('vinculo-area').style.display = '';
+        document.getElementById('vinculo-empty').style.display = 'none';
+
+        try {
+            vinculos = await NEXO.api.getVinculos(lojaId);
+            selectedIds = new Set(vinculos.map(v => v.id_produto));
+        } catch { selectedIds = new Set(); }
+        renderGrid();
+    };
+
+    document.getElementById('btn-select-basicos').onclick = () => {
+        selectedIds = new Set(produtos.filter(p => p.classificacao === 'Basico').map(p => p.id));
+        renderGrid();
+    };
+    document.getElementById('btn-select-all').onclick = () => {
+        selectedIds = new Set(produtos.map(p => p.id));
+        renderGrid();
+    };
+    document.getElementById('btn-deselect-all').onclick = () => {
+        selectedIds = new Set();
+        renderGrid();
+    };
+
+    document.getElementById('btn-salvar-vinculos').onclick = async () => {
+        const lojaId = document.getElementById('vinculo-loja').value;
+        if (!lojaId) return;
+        const btn = document.getElementById('btn-salvar-vinculos');
+        NEXO.ui.btnLoading(btn, true, 'Salvando...');
+        try {
+            await NEXO.api.setVinculos(lojaId, [...selectedIds]);
+            NEXO.ui.toast(`${selectedIds.size} vínculos salvos.`, 'success');
+        } catch (err) { NEXO.ui.toast('Erro: ' + err.message, 'error'); }
+        finally { NEXO.ui.btnLoading(btn, false); }
+    };
+};
+</script>
