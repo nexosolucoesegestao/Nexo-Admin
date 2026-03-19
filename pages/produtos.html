@@ -1,36 +1,24 @@
-<!-- Produtos — CRUD corrigido para colunas reais -->
+<!-- Produtos v2 — classificacao Básico/Complementar + export -->
 
 <div class="page-header">
-    <div>
-        <h1>Produtos</h1>
-        <p class="subtitle">Catálogo de cortes monitorados pelo NEXO</p>
+    <div><h1>Produtos</h1><p class="subtitle">Catálogo de cortes monitorados pelo NEXO</p></div>
+    <div class="flex-gap">
+        <button class="btn btn-secondary btn-sm" id="btn-export-produtos">📥 Exportar</button>
+        <button class="btn btn-primary" id="btn-novo-produto">+ Novo Produto</button>
     </div>
-    <button class="btn btn-primary" id="btn-novo-produto">+ Novo Produto</button>
 </div>
 
 <div class="flex-gap mb-2">
-    <select class="form-select" id="filtro-proteina" style="width:180px;">
-        <option value="">Todas as proteínas</option>
-        <option value="Bovino">Bovino</option><option value="Suino">Suíno</option><option value="Aves">Aves</option>
-    </select>
-    <select class="form-select" id="filtro-classif" style="width:180px;">
-        <option value="">Todas as classificações</option>
-        <option value="Basico">Básico</option><option value="Complementar">Complementar</option>
-    </select>
-    <div class="search-bar" style="flex:1; max-width:250px;">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="form-input" id="search-produtos" placeholder="Buscar corte..." style="padding-left:2.5rem;">
-    </div>
+    <select class="form-select" id="filtro-proteina" style="width:180px;"><option value="">Todas as proteínas</option><option>Bovino</option><option>Suino</option><option>Aves</option></select>
+    <select class="form-select" id="filtro-classif" style="width:180px;"><option value="">Todas</option><option value="Básico">Básico</option><option value="Complementar">Complementar</option></select>
+    <div class="search-bar" style="flex:1;max-width:250px;"><span class="search-icon">🔍</span><input type="text" class="form-input" id="search-produtos" placeholder="Buscar corte..." style="padding-left:2.5rem;"></div>
 </div>
 
 <div class="card">
     <div class="card-header"><h3 id="produtos-count">Carregando...</h3></div>
-    <div id="produtos-table-area">
-        <div class="loading-state"><div class="spinner"></div><span>Carregando...</span></div>
-    </div>
+    <div id="produtos-table-area"><div class="loading-state"><div class="spinner"></div><span>Carregando...</span></div></div>
 </div>
 
-<!-- Modal -->
 <div class="modal-overlay" id="modal-produto" style="display:none;">
     <div class="modal" style="max-width:460px;">
         <div class="modal-header"><h3 id="modal-produto-title">Novo Produto</h3></div>
@@ -39,11 +27,9 @@
             <div class="form-group mb-2"><label class="form-label">Corte *</label><input type="text" class="form-input" id="produto-corte" placeholder="Ex: Picanha"></div>
             <div class="form-row">
                 <div class="form-group"><label class="form-label">Proteína *</label>
-                    <select class="form-select" id="produto-proteina"><option value="">Selecione...</option><option>Bovino</option><option>Suino</option><option>Aves</option></select>
-                </div>
+                    <select class="form-select" id="produto-proteina"><option value="">Selecione...</option><option>Bovino</option><option>Suino</option><option>Aves</option></select></div>
                 <div class="form-group"><label class="form-label">Classificação *</label>
-                    <select class="form-select" id="produto-classif"><option value="">Selecione...</option><option>Basico</option><option>Complementar</option></select>
-                </div>
+                    <select class="form-select" id="produto-classif"><option value="">Selecione...</option><option value="Básico">Básico</option><option value="Complementar">Complementar</option></select></div>
             </div>
         </div>
         <div class="modal-footer">
@@ -56,81 +42,65 @@
 <script>
 window.initProdutos = async () => {
     let produtos = [];
-
     async function load() {
-        try { produtos = await NEXO.api.getProdutos(); render(produtos); }
-        catch (err) { NEXO.ui.toast('Erro ao carregar.', 'error'); console.error(err); }
+        try { produtos = await NEXO.api.getProdutos(); render(produtos); } catch (err) { NEXO.ui.toast('Erro ao carregar.', 'error'); console.error(err); }
     }
-
     function render(data) {
         document.getElementById('produtos-count').textContent = `${data.length} produto${data.length !== 1 ? 's' : ''}`;
-        if (!data.length) { document.getElementById('produtos-table-area').innerHTML = '<div class="empty-state"><div class="icon">🥩</div><p>Nenhum produto cadastrado</p></div>'; return; }
-        const proteinaIcon = { 'Bovino': '🐂', 'Suino': '🐷', 'Aves': '🐔' };
+        if (!data.length) { document.getElementById('produtos-table-area').innerHTML = '<div class="empty-state"><div class="icon">🥩</div><p>Nenhum produto</p></div>'; return; }
+        const ic = {'Bovino':'🐂','Suino':'🐷','Aves':'🐔'};
         const rows = data.map(p => `<tr>
-            <td>${proteinaIcon[p.proteina] || '•'} ${NEXO.ui.escapeHtml(p.proteina || '—')}</td>
+            <td>${ic[p.proteina]||'•'} ${NEXO.ui.escapeHtml(p.proteina||'—')}</td>
             <td><strong>${NEXO.ui.escapeHtml(p.corte_pai)}</strong></td>
-            <td><span class="badge ${p.classificacao === 'Basico' ? 'badge-success' : 'badge-info'}">${p.classificacao || '—'}</span></td>
+            <td><span class="badge ${p.classificacao==='Básico'?'badge-success':'badge-info'}">${p.classificacao||'—'}</span></td>
             <td><div class="flex-gap"><button class="btn btn-ghost btn-sm" onclick="editProduto('${p.id}')">✏️</button><button class="btn btn-ghost btn-sm" onclick="removeProduto('${p.id}','${NEXO.ui.escapeHtml(p.corte_pai)}')">🗑️</button></div></td>
         </tr>`).join('');
         document.getElementById('produtos-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Proteína</th><th>Corte</th><th>Classificação</th><th style="width:100px">Ações</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }
-
     const modal = document.getElementById('modal-produto');
-    const openModal = (p = null) => {
+    const openModal = (p=null) => {
         document.getElementById('modal-produto-title').textContent = p ? 'Editar Produto' : 'Novo Produto';
         document.getElementById('produto-id').value = p?.id || '';
         document.getElementById('produto-corte').value = p?.corte_pai || '';
         document.getElementById('produto-proteina').value = p?.proteina || '';
         document.getElementById('produto-classif').value = p?.classificacao || '';
-        modal.style.display = 'flex';
-        requestAnimationFrame(() => modal.classList.add('modal-visible'));
+        modal.style.display='flex'; requestAnimationFrame(()=>modal.classList.add('modal-visible'));
     };
-    const closeModal = () => { modal.classList.remove('modal-visible'); setTimeout(() => modal.style.display = 'none', 250); };
-
-    document.getElementById('btn-novo-produto').onclick = () => openModal();
+    const closeModal = () => { modal.classList.remove('modal-visible'); setTimeout(()=>modal.style.display='none',250); };
+    document.getElementById('btn-novo-produto').onclick = ()=>openModal();
     document.getElementById('modal-produto-cancel').onclick = closeModal;
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-
+    modal.addEventListener('click',(e)=>{if(e.target===modal)closeModal();});
     document.getElementById('modal-produto-save').onclick = async () => {
-        const id = document.getElementById('produto-id').value;
-        const corte = document.getElementById('produto-corte').value.trim();
-        const proteina = document.getElementById('produto-proteina').value;
-        const classif = document.getElementById('produto-classif').value;
-        if (!corte || !proteina || !classif) { NEXO.ui.toast('Preencha todos os campos.', 'warning'); return; }
-        const payload = { corte_pai: corte, proteina, classificacao: classif };
-        const btn = document.getElementById('modal-produto-save');
-        NEXO.ui.btnLoading(btn, true);
-        try {
-            id ? await NEXO.api.updateProduto(id, payload) : await NEXO.api.createProduto(payload);
-            NEXO.ui.toast(id ? 'Atualizado.' : 'Criado.', 'success');
-            closeModal(); await load();
-        } catch (err) { NEXO.ui.toast('Erro: ' + err.message, 'error'); }
-        finally { NEXO.ui.btnLoading(btn, false); }
+        const id=document.getElementById('produto-id').value;
+        const corte=document.getElementById('produto-corte').value.trim();
+        const proteina=document.getElementById('produto-proteina').value;
+        const classif=document.getElementById('produto-classif').value;
+        if(!corte||!proteina||!classif){NEXO.ui.toast('Preencha todos os campos.','warning');return;}
+        const payload={corte_pai:corte,proteina,classificacao:classif};
+        const btn=document.getElementById('modal-produto-save');
+        NEXO.ui.btnLoading(btn,true);
+        try{id?await NEXO.api.updateProduto(id,payload):await NEXO.api.createProduto(payload);
+            NEXO.ui.toast(id?'Atualizado.':'Criado.','success');closeModal();await load();
+        }catch(err){NEXO.ui.toast('Erro: '+err.message,'error');}finally{NEXO.ui.btnLoading(btn,false);}
     };
-
-    window.editProduto = (id) => { const p = produtos.find(x => x.id === id); if (p) openModal(p); };
-    window.removeProduto = (id, nome) => {
-        NEXO.ui.confirm('Excluir', `Excluir "<strong>${nome}</strong>"?`, async () => {
-            try { await NEXO.api.deleteProduto(id); NEXO.ui.toast('Excluído.', 'success'); await load(); }
-            catch (err) { NEXO.ui.toast('Erro: ' + err.message, 'error'); }
-        });
-    };
-
-    function applyFilters() {
-        const prot = document.getElementById('filtro-proteina').value;
-        const cls = document.getElementById('filtro-classif').value;
-        const q = document.getElementById('search-produtos').value.toLowerCase();
-        let f = produtos;
-        if (prot) f = f.filter(p => p.proteina === prot);
-        if (cls) f = f.filter(p => p.classificacao === cls);
-        if (q) f = f.filter(p => p.corte_pai.toLowerCase().includes(q));
-        render(f);
+    window.editProduto=(id)=>{const p=produtos.find(x=>x.id===id);if(p)openModal(p);};
+    window.removeProduto=(id,nome)=>{NEXO.ui.confirm('Excluir',`Excluir "${nome}"?`,async()=>{
+        try{await NEXO.api.deleteProduto(id);NEXO.ui.toast('Excluído.','success');await load();}catch(err){NEXO.ui.toast('Erro: '+err.message,'error');}
+    });};
+    function applyFilters(){
+        const prot=document.getElementById('filtro-proteina').value;
+        const cls=document.getElementById('filtro-classif').value;
+        const q=document.getElementById('search-produtos').value.toLowerCase();
+        let f=produtos;if(prot)f=f.filter(p=>p.proteina===prot);if(cls)f=f.filter(p=>p.classificacao===cls);
+        if(q)f=f.filter(p=>p.corte_pai.toLowerCase().includes(q));render(f);
     }
-
-    document.getElementById('filtro-proteina').onchange = applyFilters;
-    document.getElementById('filtro-classif').onchange = applyFilters;
-    document.getElementById('search-produtos').addEventListener('input', NEXO.ui.debounce(applyFilters, 200));
-
+    document.getElementById('filtro-proteina').onchange=applyFilters;
+    document.getElementById('filtro-classif').onchange=applyFilters;
+    document.getElementById('search-produtos').addEventListener('input',NEXO.ui.debounce(applyFilters,200));
+    document.getElementById('btn-export-produtos').onclick = () => {
+        NEXO.api.exportToCSV(produtos.map(p=>({Proteina:p.proteina,Corte:p.corte_pai,Classificacao:p.classificacao})),'nexo_produtos');
+        NEXO.ui.toast('Exportado.','success');
+    };
     await load();
 };
 </script>
