@@ -150,7 +150,7 @@ window.initLojas = async () => {
         render(f);
     },200));
     document.getElementById('btn-export-lojas').onclick=()=>{
-        NEXO.api.exportToCSV(lojas.map(l=>({Nome:l.nome,Rede:l.redes?.nome||l.rede||'',Cidade:l.cidade||'',UF:l.uf||'',Gerente:l.contato_gerente||'',Telefone:l.tel_gerente||'',Status:l.status||''})),'nexo_lojas');
+        NEXO.api.exportToXLSX(lojas.map(l=>({Nome:l.nome,Rede:l.redes?.nome||l.rede||'',Cidade:l.cidade||'',UF:l.uf||'',Gerente:l.contato_gerente||'',Telefone:l.tel_gerente||'',Status:l.status||''})),'nexo_lojas');
         NEXO.ui.toast('Exportado.','success');
     };
     await load();
