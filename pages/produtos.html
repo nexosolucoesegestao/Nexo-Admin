@@ -98,7 +98,7 @@ window.initProdutos = async () => {
     document.getElementById('filtro-classif').onchange=applyFilters;
     document.getElementById('search-produtos').addEventListener('input',NEXO.ui.debounce(applyFilters,200));
     document.getElementById('btn-export-produtos').onclick = () => {
-        NEXO.api.exportToCSV(produtos.map(p=>({Proteina:p.proteina,Corte:p.corte_pai,Classificacao:p.classificacao})),'nexo_produtos');
+        NEXO.api.exportToXLSX(produtos.map(p=>({Proteina:p.proteina,Corte:p.corte_pai,Classificacao:p.classificacao})),'nexo_produtos');
         NEXO.ui.toast('Exportado.','success');
     };
     await load();
