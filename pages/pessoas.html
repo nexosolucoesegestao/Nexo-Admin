@@ -144,7 +144,7 @@ window.initPessoas = async () => {
     }, 200));
     document.getElementById('btn-export-pessoas').onclick = () => {
         const exportData = pessoas.map(p => ({ Nome: p.nome, Loja: p.lojas?.nome || '', Cargo: p.cargo, Turno: p.turno || '', Tipo: p.tipo, Marca: p.marca_terceiro || '', Telefone: p.telefone || '', Email: p.email || '' }));
-        NEXO.api.exportToCSV(exportData, 'nexo_pessoas');
+        NEXO.api.exportToXLSX(exportData, 'nexo_pessoas');
         NEXO.ui.toast('Arquivo exportado.', 'success');
     };
     await load();
