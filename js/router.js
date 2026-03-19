@@ -1,10 +1,4 @@
-// ============================================================
-// NEXO Intelligence Admin — Router
-// ============================================================
-// SPA router baseado em hash (#/rota).
-// Carrega páginas HTML no container principal.
-// Gerencia active state na sidebar.
-// ============================================================
+// NEXO Intelligence Admin — Router (v1.1 — executa scripts)
 
 window.NEXO = window.NEXO || {};
 
@@ -15,21 +9,13 @@ window.NEXO.router = (() => {
     let _currentRoute = null;
     let _onBeforeNavigate = null;
 
-    // ── Registro de rotas ───────────────────────────────────
-
-    function register(routes) {
-        _routes = routes;
-    }
+    function register(routes) { _routes = routes; }
 
     function setContainer(el) {
         _container = typeof el === 'string' ? document.querySelector(el) : el;
     }
 
-    function setBeforeNavigate(fn) {
-        _onBeforeNavigate = fn;
-    }
-
-    // ── Navegação ───────────────────────────────────────────
+    function setBeforeNavigate(fn) { _onBeforeNavigate = fn; }
 
     async function navigate(hash) {
         if (_onBeforeNavigate) {
@@ -41,24 +27,45 @@ window.NEXO.router = (() => {
         const config = _routes[route];
 
         if (!config) {
-            console.warn(`[Router] Rota não encontrada: ${route}`);
             navigate('#/dashboard');
             return;
         }
 
-        // Atualiza hash sem disparar hashchange de novo
         if (window.location.hash !== `#/${route}`) {
             history.pushState(null, '', `#/${route}`);
         }
 
         _currentRoute = route;
 
-        // Carrega o HTML da página
         try {
             const resp = await fetch(config.file);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const html = await resp.text();
-            _container.innerHTML = html;
+
+            // Separa HTML e scripts
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+
+            // Extrai scripts antes de inserir
+            const scripts = temp.querySelectorAll('script');
+            const scriptContents = [];
+            scripts.forEach(s => {
+                scriptContents.push(s.textContent);
+                s.remove();
+            });
+
+            // Insere o HTML sem scripts
+            _container.innerHTML = temp.innerHTML;
+
+            // Executa os scripts manualmente
+            for (const code of scriptContents) {
+                try {
+                    const fn = new Function(code);
+                    fn();
+                } catch (e) {
+                    console.error('[Router] Erro ao executar script da página:', e);
+                }
+            }
 
             // Executa o init da página se existir
             if (config.init && typeof config.init === 'function') {
@@ -66,55 +73,34 @@ window.NEXO.router = (() => {
             }
 
             // Atualiza active na sidebar
-            _updateSidebarActive(route);
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.route === route) link.classList.add('active');
+            });
 
-            // Scroll to top
             _container.scrollTop = 0;
 
         } catch (err) {
             console.error(`[Router] Erro ao carregar ${route}:`, err);
             _container.innerHTML = `
-                <div style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                <div style="padding:2rem;text-align:center;color:var(--text-secondary);">
                     <p>Erro ao carregar a página.</p>
-                    <p style="font-size: 0.85rem; margin-top: 0.5rem;">${err.message}</p>
+                    <p style="font-size:0.85rem;margin-top:0.5rem;">${err.message}</p>
                 </div>
             `;
         }
     }
 
-    function _updateSidebarActive(route) {
-        document.querySelectorAll('.sidebar-link').forEach(link => {
-            link.classList.remove('active');
-            if (link.dataset.route === route) {
-                link.classList.add('active');
-            }
-        });
-    }
-
-    function getCurrentRoute() {
-        return _currentRoute;
-    }
-
-    // ── Init ────────────────────────────────────────────────
+    function getCurrentRoute() { return _currentRoute; }
 
     function init() {
-        // Escuta mudanças de hash
         window.addEventListener('hashchange', () => {
             navigate(window.location.hash);
         });
-
-        // Navega para a rota inicial
         const initialHash = window.location.hash || '#/dashboard';
         navigate(initialHash);
     }
 
-    return {
-        register,
-        setContainer,
-        setBeforeNavigate,
-        navigate,
-        getCurrentRoute,
-        init
-    };
+    return { register, setContainer, setBeforeNavigate, navigate, getCurrentRoute, init };
 
 })();
