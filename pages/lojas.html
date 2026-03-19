@@ -1,56 +1,46 @@
-<!-- Lojas — CRUD corrigido para colunas reais -->
+<!-- Lojas v2 — logo + export + campos reais -->
 
 <div class="page-header">
-    <div>
-        <h1>Lojas</h1>
-        <p class="subtitle">Pontos de venda monitorados pelo NEXO</p>
+    <div><h1>Lojas</h1><p class="subtitle">Pontos de venda monitorados pelo NEXO</p></div>
+    <div class="flex-gap">
+        <button class="btn btn-secondary btn-sm" id="btn-export-lojas">📥 Exportar</button>
+        <button class="btn btn-primary" id="btn-nova-loja">+ Nova Loja</button>
     </div>
-    <button class="btn btn-primary" id="btn-nova-loja">+ Nova Loja</button>
 </div>
-
 <div class="flex-gap mb-2">
-    <select class="form-select" id="filtro-rede" style="width:220px;">
-        <option value="">Todas as redes</option>
-    </select>
-    <div class="search-bar" style="flex:1; max-width:280px;">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="form-input" id="search-lojas" placeholder="Buscar loja..." style="padding-left:2.5rem;">
-    </div>
+    <select class="form-select" id="filtro-rede" style="width:220px;"><option value="">Todas as redes</option></select>
+    <div class="search-bar" style="flex:1;max-width:280px;"><span class="search-icon">🔍</span><input type="text" class="form-input" id="search-lojas" placeholder="Buscar loja..." style="padding-left:2.5rem;"></div>
 </div>
-
 <div class="card">
     <div class="card-header"><h3 id="lojas-count">Carregando...</h3></div>
-    <div id="lojas-table-area">
-        <div class="loading-state"><div class="spinner"></div><span>Carregando lojas...</span></div>
-    </div>
+    <div id="lojas-table-area"><div class="loading-state"><div class="spinner"></div><span>Carregando lojas...</span></div></div>
 </div>
 
-<!-- Modal -->
 <div class="modal-overlay" id="modal-loja" style="display:none;">
     <div class="modal" style="max-width:560px;">
         <div class="modal-header"><h3 id="modal-loja-title">Nova Loja</h3></div>
         <div class="modal-body">
             <input type="hidden" id="loja-id">
-            <div class="form-group mb-2"><label class="form-label">Nome da Loja *</label><input type="text" class="form-input" id="loja-nome" placeholder="Ex: Filial Centro"></div>
-            <div class="form-group mb-2"><label class="form-label">Rede *</label><select class="form-select" id="loja-rede"><option value="">Selecione...</option></select></div>
-            <div class="form-group mb-2"><label class="form-label">CNPJ</label><input type="text" class="form-input" id="loja-cnpj" placeholder="00.000.000/0000-00"></div>
-            <div class="form-group mb-2"><label class="form-label">Endereço</label><input type="text" class="form-input" id="loja-endereco" placeholder="Rua, número — Bairro"></div>
-            <div class="form-row mb-2">
-                <div class="form-group"><label class="form-label">Cidade</label><input type="text" class="form-input" id="loja-cidade" placeholder="São Paulo"></div>
-                <div class="form-group"><label class="form-label">UF</label>
-                    <select class="form-select" id="loja-uf"><option value="">--</option><option>AC</option><option>AL</option><option>AM</option><option>AP</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MG</option><option>MS</option><option>MT</option><option>PA</option><option>PB</option><option>PE</option><option>PI</option><option>PR</option><option>RJ</option><option>RN</option><option>RO</option><option>RR</option><option>RS</option><option>SC</option><option selected>SP</option><option>SE</option><option>TO</option></select>
+            <div class="form-group mb-2">
+                <label class="form-label">Logo da loja</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div id="logo-preview" style="width:56px;height:56px;border-radius:8px;background:var(--surface-elevated);border:2px dashed var(--border-default);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--text-muted);overflow:hidden;">📷</div>
+                    <div><input type="file" id="loja-logo-file" accept="image/*" style="font-size:0.8rem;color:var(--text-secondary);"><br><span style="font-size:0.7rem;color:var(--text-muted);">PNG/JPG até 2MB</span></div>
                 </div>
             </div>
+            <div class="form-group mb-2"><label class="form-label">Nome da Loja *</label><input type="text" class="form-input" id="loja-nome"></div>
+            <div class="form-group mb-2"><label class="form-label">Rede *</label><select class="form-select" id="loja-rede"><option value="">Selecione...</option></select></div>
+            <div class="form-group mb-2"><label class="form-label">CNPJ</label><input type="text" class="form-input" id="loja-cnpj"></div>
+            <div class="form-group mb-2"><label class="form-label">Endereço</label><input type="text" class="form-input" id="loja-endereco"></div>
             <div class="form-row mb-2">
-                <div class="form-group"><label class="form-label">Gerente / Contato</label><input type="text" class="form-input" id="loja-contato" placeholder="Nome do gerente"></div>
-                <div class="form-group"><label class="form-label">Telefone</label><input type="text" class="form-input" id="loja-telefone" placeholder="(11) 3333-4444"></div>
+                <div class="form-group"><label class="form-label">Cidade</label><input type="text" class="form-input" id="loja-cidade"></div>
+                <div class="form-group"><label class="form-label">UF</label><select class="form-select" id="loja-uf"><option value="">--</option><option>AC</option><option>AL</option><option>AM</option><option>AP</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MG</option><option>MS</option><option>MT</option><option>PA</option><option>PB</option><option>PE</option><option>PI</option><option>PR</option><option>RJ</option><option>RN</option><option>RO</option><option>RR</option><option>RS</option><option>SC</option><option selected>SP</option><option>SE</option><option>TO</option></select></div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Status</label>
-                <select class="form-select" id="loja-status">
-                    <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
-                </select>
+            <div class="form-row mb-2">
+                <div class="form-group"><label class="form-label">Gerente</label><input type="text" class="form-input" id="loja-contato"></div>
+                <div class="form-group"><label class="form-label">Telefone</label><input type="text" class="form-input" id="loja-telefone"></div>
             </div>
+            <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="loja-status"><option value="ativo">Ativo</option><option value="inativo">Inativo</option></select></div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-ghost" id="modal-loja-cancel">Cancelar</button>
@@ -61,103 +51,108 @@
 
 <script>
 window.initLojas = async () => {
-    let lojas = [], redes = [];
-
-    async function load() {
-        try {
-            [lojas, redes] = await Promise.all([NEXO.api.getLojas(), NEXO.api.getRedes().catch(() => [])]);
-            const opts = redes.map(r => `<option value="${r.id}">${NEXO.ui.escapeHtml(r.nome)}</option>`).join('');
-            document.getElementById('filtro-rede').innerHTML = `<option value="">Todas as redes</option>${opts}`;
-            document.getElementById('loja-rede').innerHTML = `<option value="">Selecione...</option>${opts}`;
+    let lojas=[],redes=[];
+    async function load(){
+        try{
+            [lojas,redes]=await Promise.all([NEXO.api.getLojas(),NEXO.api.getRedes().catch(()=>[])]);
+            const opts=redes.map(r=>`<option value="${r.id}">${NEXO.ui.escapeHtml(r.nome)}</option>`).join('');
+            document.getElementById('filtro-rede').innerHTML=`<option value="">Todas as redes</option>${opts}`;
+            document.getElementById('loja-rede').innerHTML=`<option value="">Selecione...</option>${opts}`;
             render(lojas);
-        } catch (err) { NEXO.ui.toast('Erro ao carregar lojas.', 'error'); console.error(err); }
+        }catch(err){NEXO.ui.toast('Erro ao carregar.','error');console.error(err);}
     }
-
-    function render(data) {
-        document.getElementById('lojas-count').textContent = `${data.length} loja${data.length !== 1 ? 's' : ''}`;
-        if (!data.length) { document.getElementById('lojas-table-area').innerHTML = '<div class="empty-state"><div class="icon">🏪</div><p>Nenhuma loja cadastrada</p></div>'; return; }
-        const rows = data.map(l => {
-            const redeNome = l.redes?.nome || l.rede || '—';
-            const statusBadge = l.status !== 'inativo'
-                ? '<span class="badge badge-success">Ativo</span>'
-                : '<span class="badge badge-danger">Inativo</span>';
+    function getInitials(nome){return nome.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();}
+    function render(data){
+        document.getElementById('lojas-count').textContent=`${data.length} loja${data.length!==1?'s':''}`;
+        if(!data.length){document.getElementById('lojas-table-area').innerHTML='<div class="empty-state"><div class="icon">🏪</div><p>Nenhuma loja</p></div>';return;}
+        const colors=['#1a4d2e','#2a1a3d','#1a2d4d','#3d2a1a','#1a3d3d','#3d1a2a'];
+        const rows=data.map((l,i)=>{
+            const redeNome=l.redes?.nome||l.rede||'—';
+            const initials=getInitials(l.nome);
+            const logoHtml=l.logo_url
+                ?`<img src="${l.logo_url}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;">`
+                :`<div style="width:32px;height:32px;border-radius:6px;background:${colors[i%colors.length]};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--text-secondary);">${initials}</div>`;
+            const st=l.status!=='inativo'?'<span class="badge badge-success">Ativo</span>':'<span class="badge badge-danger">Inativo</span>';
             return `<tr>
-                <td><strong>${NEXO.ui.escapeHtml(l.nome)}</strong></td>
+                <td><div style="display:flex;align-items:center;gap:10px;">${logoHtml}<strong>${NEXO.ui.escapeHtml(l.nome)}</strong></div></td>
                 <td>${NEXO.ui.escapeHtml(redeNome)}</td>
-                <td>${NEXO.ui.escapeHtml(l.cidade || '')}${l.uf ? '/' + l.uf : ''}</td>
-                <td>${NEXO.ui.escapeHtml(l.contato_gerente || '—')}</td>
-                <td>${NEXO.ui.escapeHtml(l.tel_gerente || '—')}</td>
-                <td>${statusBadge}</td>
+                <td>${NEXO.ui.escapeHtml(l.cidade||'')}${l.uf?'/'+l.uf:''}</td>
+                <td>${NEXO.ui.escapeHtml(l.contato_gerente||'—')}</td>
+                <td>${st}</td>
                 <td><div class="flex-gap"><button class="btn btn-ghost btn-sm" onclick="editLoja('${l.id}')">✏️</button><button class="btn btn-ghost btn-sm" onclick="removeLoja('${l.id}','${NEXO.ui.escapeHtml(l.nome)}')">🗑️</button></div></td>
             </tr>`;
         }).join('');
-        document.getElementById('lojas-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Nome</th><th>Rede</th><th>Cidade/UF</th><th>Gerente</th><th>Telefone</th><th>Status</th><th style="width:100px">Ações</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        document.getElementById('lojas-table-area').innerHTML=`<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Loja</th><th>Rede</th><th>Cidade/UF</th><th>Gerente</th><th>Status</th><th style="width:100px">Ações</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }
-
-    const modal = document.getElementById('modal-loja');
-    const openModal = (l = null) => {
-        document.getElementById('modal-loja-title').textContent = l ? 'Editar Loja' : 'Nova Loja';
-        document.getElementById('loja-id').value = l?.id || '';
-        document.getElementById('loja-nome').value = l?.nome || '';
-        document.getElementById('loja-rede').value = l?.id_rede || '';
-        document.getElementById('loja-cnpj').value = l?.cnpj || '';
-        document.getElementById('loja-endereco').value = l?.endereco || '';
-        document.getElementById('loja-cidade').value = l?.cidade || '';
-        document.getElementById('loja-uf').value = l?.uf || 'SP';
-        document.getElementById('loja-contato').value = l?.contato_gerente || '';
-        document.getElementById('loja-telefone').value = l?.tel_gerente || '';
-        document.getElementById('loja-status').value = l?.status || 'ativo';
-        modal.style.display = 'flex';
-        requestAnimationFrame(() => modal.classList.add('modal-visible'));
+    const modal=document.getElementById('modal-loja');
+    const logoFileInput=document.getElementById('loja-logo-file');
+    const logoPreview=document.getElementById('logo-preview');
+    logoFileInput.onchange=(e)=>{
+        const file=e.target.files[0];
+        if(file){const r=new FileReader();r.onload=(ev)=>{logoPreview.innerHTML=`<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover;">`;};r.readAsDataURL(file);}
     };
-    const closeModal = () => { modal.classList.remove('modal-visible'); setTimeout(() => modal.style.display = 'none', 250); };
-
-    document.getElementById('btn-nova-loja').onclick = () => openModal();
-    document.getElementById('modal-loja-cancel').onclick = closeModal;
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-
-    document.getElementById('modal-loja-save').onclick = async () => {
-        const id = document.getElementById('loja-id').value;
-        const nome = document.getElementById('loja-nome').value.trim();
-        const idRede = document.getElementById('loja-rede').value;
-        if (!nome) { NEXO.ui.toast('Nome obrigatório.', 'warning'); return; }
-        if (!idRede) { NEXO.ui.toast('Selecione uma rede.', 'warning'); return; }
-        const payload = {
-            nome, id_rede: idRede,
-            cnpj: document.getElementById('loja-cnpj').value.trim() || null,
-            endereco: document.getElementById('loja-endereco').value.trim() || null,
-            cidade: document.getElementById('loja-cidade').value.trim() || null,
-            uf: document.getElementById('loja-uf').value || null,
-            contato_gerente: document.getElementById('loja-contato').value.trim() || null,
-            tel_gerente: document.getElementById('loja-telefone').value.trim() || null,
-            status: document.getElementById('loja-status').value
-        };
-        const btn = document.getElementById('modal-loja-save');
-        NEXO.ui.btnLoading(btn, true, 'Salvando...');
-        try {
-            id ? await NEXO.api.updateLoja(id, payload) : await NEXO.api.createLoja(payload);
-            NEXO.ui.toast(id ? 'Loja atualizada.' : 'Loja criada.', 'success');
-            closeModal(); await load();
-        } catch (err) { NEXO.ui.toast('Erro: ' + err.message, 'error'); }
-        finally { NEXO.ui.btnLoading(btn, false); }
+    const openModal=(l=null)=>{
+        document.getElementById('modal-loja-title').textContent=l?'Editar Loja':'Nova Loja';
+        document.getElementById('loja-id').value=l?.id||'';
+        document.getElementById('loja-nome').value=l?.nome||'';
+        document.getElementById('loja-rede').value=l?.id_rede||'';
+        document.getElementById('loja-cnpj').value=l?.cnpj||'';
+        document.getElementById('loja-endereco').value=l?.endereco||'';
+        document.getElementById('loja-cidade').value=l?.cidade||'';
+        document.getElementById('loja-uf').value=l?.uf||'SP';
+        document.getElementById('loja-contato').value=l?.contato_gerente||'';
+        document.getElementById('loja-telefone').value=l?.tel_gerente||'';
+        document.getElementById('loja-status').value=l?.status||'ativo';
+        logoPreview.innerHTML=l?.logo_url?`<img src="${l.logo_url}" style="width:100%;height:100%;object-fit:cover;">`:'📷';
+        logoFileInput.value='';
+        modal.style.display='flex';requestAnimationFrame(()=>modal.classList.add('modal-visible'));
     };
-
-    window.editLoja = (id) => { const l = lojas.find(x => x.id === id); if (l) openModal(l); };
-    window.removeLoja = (id, nome) => {
-        NEXO.ui.confirm('Excluir Loja', `Excluir "<strong>${nome}</strong>"?`, async () => {
-            try { await NEXO.api.deleteLoja(id); NEXO.ui.toast('Excluída.', 'success'); await load(); }
-            catch (err) { NEXO.ui.toast('Erro: ' + err.message, 'error'); }
-        });
+    const closeModal=()=>{modal.classList.remove('modal-visible');setTimeout(()=>modal.style.display='none',250);};
+    document.getElementById('btn-nova-loja').onclick=()=>openModal();
+    document.getElementById('modal-loja-cancel').onclick=closeModal;
+    modal.addEventListener('click',(e)=>{if(e.target===modal)closeModal();});
+    document.getElementById('modal-loja-save').onclick=async()=>{
+        const id=document.getElementById('loja-id').value;
+        const nome=document.getElementById('loja-nome').value.trim();
+        const idRede=document.getElementById('loja-rede').value;
+        if(!nome){NEXO.ui.toast('Nome obrigatório.','warning');return;}
+        if(!idRede){NEXO.ui.toast('Selecione uma rede.','warning');return;}
+        const payload={nome,id_rede:idRede,cnpj:document.getElementById('loja-cnpj').value.trim()||null,
+            endereco:document.getElementById('loja-endereco').value.trim()||null,
+            cidade:document.getElementById('loja-cidade').value.trim()||null,uf:document.getElementById('loja-uf').value||null,
+            contato_gerente:document.getElementById('loja-contato').value.trim()||null,
+            tel_gerente:document.getElementById('loja-telefone').value.trim()||null,
+            status:document.getElementById('loja-status').value};
+        const btn=document.getElementById('modal-loja-save');
+        NEXO.ui.btnLoading(btn,true,'Salvando...');
+        try{
+            let savedLoja;
+            if(id){savedLoja=await NEXO.api.updateLoja(id,payload);}else{savedLoja=await NEXO.api.createLoja(payload);}
+            const file=logoFileInput.files[0];
+            if(file&&savedLoja){
+                try{
+                    const logoUrl=await NEXO.api.uploadLogo(file,savedLoja.id);
+                    await NEXO.api.updateLoja(savedLoja.id,{logo_url:logoUrl});
+                }catch(e){console.error('Logo upload err:',e);}
+            }
+            NEXO.ui.toast(id?'Loja atualizada.':'Loja criada.','success');closeModal();await load();
+        }catch(err){NEXO.ui.toast('Erro: '+err.message,'error');}finally{NEXO.ui.btnLoading(btn,false);}
     };
-
-    document.getElementById('filtro-rede').onchange = (e) => render(e.target.value ? lojas.filter(l => l.id_rede === e.target.value) : lojas);
-    document.getElementById('search-lojas').addEventListener('input', NEXO.ui.debounce((e) => {
-        const q = e.target.value.toLowerCase(), r = document.getElementById('filtro-rede').value;
-        let f = r ? lojas.filter(l => l.id_rede === r) : lojas;
-        if (q) f = f.filter(l => l.nome.toLowerCase().includes(q) || (l.contato_gerente||'').toLowerCase().includes(q));
+    window.editLoja=(id)=>{const l=lojas.find(x=>x.id===id);if(l)openModal(l);};
+    window.removeLoja=(id,nome)=>{NEXO.ui.confirm('Excluir',`Excluir "${nome}"?`,async()=>{
+        try{await NEXO.api.deleteLoja(id);NEXO.ui.toast('Excluída.','success');await load();}catch(err){NEXO.ui.toast('Erro: '+err.message,'error');}
+    });};
+    document.getElementById('filtro-rede').onchange=(e)=>render(e.target.value?lojas.filter(l=>l.id_rede===e.target.value):lojas);
+    document.getElementById('search-lojas').addEventListener('input',NEXO.ui.debounce((e)=>{
+        const q=e.target.value.toLowerCase(),r=document.getElementById('filtro-rede').value;
+        let f=r?lojas.filter(l=>l.id_rede===r):lojas;
+        if(q)f=f.filter(l=>l.nome.toLowerCase().includes(q)||(l.contato_gerente||'').toLowerCase().includes(q));
         render(f);
-    }, 200));
-
+    },200));
+    document.getElementById('btn-export-lojas').onclick=()=>{
+        NEXO.api.exportToCSV(lojas.map(l=>({Nome:l.nome,Rede:l.redes?.nome||l.rede||'',Cidade:l.cidade||'',UF:l.uf||'',Gerente:l.contato_gerente||'',Telefone:l.tel_gerente||'',Status:l.status||''})),'nexo_lojas');
+        NEXO.ui.toast('Exportado.','success');
+    };
     await load();
 };
 </script>
