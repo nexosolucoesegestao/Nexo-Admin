@@ -1,0 +1,142 @@
+<!-- Contratos — CRUD completo -->
+
+<div class="page-header">
+    <div><h1>Contratos</h1><p class="subtitle">Gestão comercial — setup, fees mensais e pipeline</p></div>
+    <div class="flex-gap">
+        <button class="btn btn-secondary btn-sm" id="btn-export-contratos">📥 Exportar</button>
+        <button class="btn btn-primary" id="btn-novo-contrato">+ Novo Contrato</button>
+    </div>
+</div>
+
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.25rem;" id="contrato-stats"></div>
+
+<div class="flex-gap mb-2">
+    <select class="form-select" id="filtro-status-contrato" style="width:200px;">
+        <option value="">Todos os status</option><option value="ativo">Ativo</option><option value="negociando">Negociando</option><option value="encerrado">Encerrado</option><option value="cancelado">Cancelado</option>
+    </select>
+</div>
+
+<div class="card">
+    <div class="card-header"><h3 id="contratos-count">Carregando...</h3></div>
+    <div id="contratos-table-area"><div class="loading-state"><div class="spinner"></div><span>Carregando...</span></div></div>
+</div>
+
+<div class="modal-overlay" id="modal-contrato" style="display:none;">
+    <div class="modal" style="max-width:520px;">
+        <div class="modal-header"><h3 id="modal-contrato-title">Novo Contrato</h3></div>
+        <div class="modal-body">
+            <input type="hidden" id="contrato-id">
+            <div class="form-group mb-2"><label class="form-label">Rede *</label><select class="form-select" id="contrato-rede"><option value="">Selecione...</option></select></div>
+            <div class="form-row mb-2">
+                <div class="form-group"><label class="form-label">Tipo *</label>
+                    <select class="form-select" id="contrato-tipo"><option value="setup_fee">Setup + Fee mensal</option><option value="setup">Apenas Setup</option><option value="fee_mensal">Apenas Fee mensal</option></select>
+                </div>
+                <div class="form-group"><label class="form-label">Status</label>
+                    <select class="form-select" id="contrato-status"><option value="negociando">Negociando</option><option value="ativo">Ativo</option><option value="encerrado">Encerrado</option><option value="cancelado">Cancelado</option></select>
+                </div>
+            </div>
+            <div class="form-row mb-2">
+                <div class="form-group"><label class="form-label">Valor Setup (R$)</label><input type="number" class="form-input" id="contrato-setup" step="0.01" min="0" placeholder="0,00"></div>
+                <div class="form-group"><label class="form-label">Fee Mensal (R$)</label><input type="number" class="form-input" id="contrato-mensal" step="0.01" min="0" placeholder="0,00"></div>
+            </div>
+            <div class="form-row mb-2">
+                <div class="form-group"><label class="form-label">Data Início</label><input type="date" class="form-input" id="contrato-inicio"></div>
+                <div class="form-group"><label class="form-label">Data Renovação</label><input type="date" class="form-input" id="contrato-renovacao"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Observações</label><textarea class="form-textarea" id="contrato-obs" rows="2" placeholder="Anotações internas..."></textarea></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="modal-contrato-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="modal-contrato-save">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+window.initContratos = async () => {
+    let contratos = [], redes = [];
+    async function load() {
+        try {
+            [contratos, redes] = await Promise.all([NEXO.api.getContratos(), NEXO.api.getRedes().catch(()=>[])]);
+            document.getElementById('contrato-rede').innerHTML = `<option value="">Selecione...</option>` + redes.map(r=>`<option value="${r.id}">${NEXO.ui.escapeHtml(r.nome)}</option>`).join('');
+            renderStats(); render(contratos);
+        } catch(err) { NEXO.ui.toast('Erro ao carregar.','error'); console.error(err); }
+    }
+    function renderStats() {
+        const ativos = contratos.filter(c=>c.status==='ativo');
+        const negoc = contratos.filter(c=>c.status==='negociando');
+        const mrr = ativos.reduce((s,c)=>s+(parseFloat(c.valor_mensal)||0),0);
+        const setupTotal = contratos.reduce((s,c)=>s+(parseFloat(c.valor_setup)||0),0);
+        document.getElementById('contrato-stats').innerHTML = `
+            <div class="stat-card"><div class="stat-label">Ativos</div><div class="stat-value" style="color:var(--success)">${ativos.length}</div></div>
+            <div class="stat-card"><div class="stat-label">Negociando</div><div class="stat-value" style="color:var(--warning)">${negoc.length}</div></div>
+            <div class="stat-card"><div class="stat-label">MRR</div><div class="stat-value gold">R$ ${mrr.toLocaleString('pt-BR',{minimumFractionDigits:0})}</div></div>
+            <div class="stat-card"><div class="stat-label">Setup acumulado</div><div class="stat-value" style="color:var(--info)">R$ ${setupTotal.toLocaleString('pt-BR',{minimumFractionDigits:0})}</div></div>`;
+    }
+    function render(data) {
+        document.getElementById('contratos-count').textContent = `${data.length} contrato${data.length!==1?'s':''}`;
+        if(!data.length){document.getElementById('contratos-table-area').innerHTML='<div class="empty-state"><div class="icon">📄</div><p>Nenhum contrato cadastrado</p></div>';return;}
+        const tipoLabel = {setup:'Setup',fee_mensal:'Fee mensal',setup_fee:'Setup + Fee'};
+        const tipoBadge = {setup:'badge-info',fee_mensal:'badge-gold',setup_fee:'badge-success'};
+        const statusBadge = {ativo:'badge-success',negociando:'badge-warning',encerrado:'badge-danger',cancelado:'badge-danger'};
+        const rows = data.map(c=>`<tr>
+            <td><strong>${NEXO.ui.escapeHtml(c.redes?.nome||'—')}</strong></td>
+            <td><span class="badge ${tipoBadge[c.tipo]||'badge-info'}">${tipoLabel[c.tipo]||c.tipo}</span></td>
+            <td style="color:var(--gold-400);font-weight:600;">R$ ${(parseFloat(c.valor_setup)||0).toLocaleString('pt-BR')}</td>
+            <td style="color:var(--gold-400);font-weight:600;">R$ ${(parseFloat(c.valor_mensal)||0).toLocaleString('pt-BR')}</td>
+            <td>${NEXO.ui.formatDate(c.data_inicio)}</td>
+            <td>${NEXO.ui.formatDate(c.data_renovacao)}</td>
+            <td><span class="badge ${statusBadge[c.status]||'badge-info'}">${c.status}</span></td>
+            <td><div class="flex-gap"><button class="btn btn-ghost btn-sm" onclick="editContrato('${c.id}')">✏️</button><button class="btn btn-ghost btn-sm" onclick="removeContrato('${c.id}','${NEXO.ui.escapeHtml(c.redes?.nome||'')}')">🗑️</button></div></td>
+        </tr>`).join('');
+        document.getElementById('contratos-table-area').innerHTML = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Rede</th><th>Tipo</th><th>Setup</th><th>Fee/mês</th><th>Início</th><th>Renovação</th><th>Status</th><th style="width:100px">Ações</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    const modal = document.getElementById('modal-contrato');
+    const openModal = (c=null) => {
+        document.getElementById('modal-contrato-title').textContent = c?'Editar Contrato':'Novo Contrato';
+        document.getElementById('contrato-id').value = c?.id||'';
+        document.getElementById('contrato-rede').value = c?.id_rede||'';
+        document.getElementById('contrato-tipo').value = c?.tipo||'setup_fee';
+        document.getElementById('contrato-status').value = c?.status||'negociando';
+        document.getElementById('contrato-setup').value = c?.valor_setup||'';
+        document.getElementById('contrato-mensal').value = c?.valor_mensal||'';
+        document.getElementById('contrato-inicio').value = c?.data_inicio||'';
+        document.getElementById('contrato-renovacao').value = c?.data_renovacao||'';
+        document.getElementById('contrato-obs').value = c?.observacoes||'';
+        modal.style.display='flex';requestAnimationFrame(()=>modal.classList.add('modal-visible'));
+    };
+    const closeModal = ()=>{modal.classList.remove('modal-visible');setTimeout(()=>modal.style.display='none',250);};
+    document.getElementById('btn-novo-contrato').onclick = ()=>openModal();
+    document.getElementById('modal-contrato-cancel').onclick = closeModal;
+    modal.addEventListener('click',(e)=>{if(e.target===modal)closeModal();});
+    document.getElementById('modal-contrato-save').onclick = async () => {
+        const id=document.getElementById('contrato-id').value;
+        const idRede=document.getElementById('contrato-rede').value;
+        if(!idRede){NEXO.ui.toast('Selecione uma rede.','warning');return;}
+        const payload = {
+            id_rede:idRede, tipo:document.getElementById('contrato-tipo').value,
+            status:document.getElementById('contrato-status').value,
+            valor_setup:parseFloat(document.getElementById('contrato-setup').value)||0,
+            valor_mensal:parseFloat(document.getElementById('contrato-mensal').value)||0,
+            data_inicio:document.getElementById('contrato-inicio').value||null,
+            data_renovacao:document.getElementById('contrato-renovacao').value||null,
+            observacoes:document.getElementById('contrato-obs').value.trim()||null
+        };
+        const btn=document.getElementById('modal-contrato-save');
+        NEXO.ui.btnLoading(btn,true);
+        try{id?await NEXO.api.updateContrato(id,payload):await NEXO.api.createContrato(payload);
+            NEXO.ui.toast(id?'Atualizado.':'Criado.','success');closeModal();await load();
+        }catch(err){NEXO.ui.toast('Erro: '+err.message,'error');}finally{NEXO.ui.btnLoading(btn,false);}
+    };
+    window.editContrato=(id)=>{const c=contratos.find(x=>x.id===id);if(c)openModal(c);};
+    window.removeContrato=(id,nome)=>{NEXO.ui.confirm('Excluir',`Excluir contrato de "${nome}"?`,async()=>{
+        try{await NEXO.api.deleteContrato(id);NEXO.ui.toast('Excluído.','success');await load();}catch(err){NEXO.ui.toast('Erro: '+err.message,'error');}
+    });};
+    document.getElementById('filtro-status-contrato').onchange=(e)=>render(e.target.value?contratos.filter(c=>c.status===e.target.value):contratos);
+    document.getElementById('btn-export-contratos').onclick = () => {
+        NEXO.api.exportToCSV(contratos.map(c=>({Rede:c.redes?.nome||'',Tipo:c.tipo,Setup:c.valor_setup,Fee_Mensal:c.valor_mensal,Inicio:c.data_inicio||'',Renovacao:c.data_renovacao||'',Status:c.status})),'nexo_contratos');
+        NEXO.ui.toast('Exportado.','success');
+    };
+    await load();
+};
+</script>
