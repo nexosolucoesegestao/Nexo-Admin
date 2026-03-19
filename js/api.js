@@ -1,5 +1,7 @@
 // ============================================================
-// NEXO Intelligence Admin — API Module (v1.1 — campos corrigidos)
+// NEXO Intelligence Admin — API Module v2.0
+// Fixes: campo tipo SETOR/TERCEIRO, classificacao Básico,
+// + contratos, logo upload, export
 // ============================================================
 
 window.NEXO = window.NEXO || {};
@@ -47,8 +49,6 @@ window.NEXO.api = (() => {
     }
 
     // ── LOJAS ────────────────────────────────────────────────
-    // Colunas reais: id(text), nome, rede, cnpj, endereco, cidade, uf,
-    //   contato_gerente, tel_gerente, data_implantacao, status, created_at, id_rede(uuid)
 
     async function getLojas() {
         const redeFilter = await _getRedeFilter();
@@ -82,9 +82,17 @@ window.NEXO.api = (() => {
         if (error) throw error;
     }
 
+    // Logo upload
+    async function uploadLogo(file, lojaId) {
+        const ext = file.name.split('.').pop();
+        const path = `logos/${lojaId}.${ext}`;
+        const { error: upErr } = await sb().storage.from('fotos').upload(path, file, { upsert: true });
+        if (upErr) throw upErr;
+        const { data } = sb().storage.from('fotos').getPublicUrl(path);
+        return data.publicUrl;
+    }
+
     // ── PESSOAS ──────────────────────────────────────────────
-    // Colunas reais: id(text), nome, tipo, cargo, loja_id(text), marca_terceiro,
-    //   telefone, turno, email, senha_hash, data_cadastro, status, created_at
 
     async function getPessoas(lojaId = null) {
         let query = sb().from('pessoas').select('*, lojas(nome, id_rede)').order('nome');
@@ -121,7 +129,6 @@ window.NEXO.api = (() => {
     }
 
     // ── PRODUTOS ─────────────────────────────────────────────
-    // Colunas reais: id(text), proteina, corte_pai, classificacao, created_at
 
     async function getProdutos() {
         const { data, error } = await sb().from('produtos').select('*').order('proteina, corte_pai');
@@ -146,8 +153,7 @@ window.NEXO.api = (() => {
         if (error) throw error;
     }
 
-    // ── LOJA_PRODUTOS (vínculos) ─────────────────────────────
-    // Colunas reais: id(bigint), loja_id(text), produto_id(text), monitorado(boolean)
+    // ── LOJA_PRODUTOS ────────────────────────────────────────
 
     async function getVinculos(lojaId) {
         const { data, error } = await sb().from('loja_produtos')
@@ -160,9 +166,7 @@ window.NEXO.api = (() => {
     async function setVinculos(lojaId, produtoIds) {
         const { error: delError } = await sb().from('loja_produtos').delete().eq('loja_id', lojaId);
         if (delError) throw delError;
-
         if (produtoIds.length === 0) return [];
-
         const rows = produtoIds.map(pid => ({ loja_id: lojaId, produto_id: pid }));
         const { data, error } = await sb().from('loja_produtos').insert(rows).select();
         if (error) throw error;
@@ -170,7 +174,6 @@ window.NEXO.api = (() => {
     }
 
     // ── PERGUNTAS ────────────────────────────────────────────
-    // Colunas reais: id(text), etapa, pergunta, tipo_resposta, obrigatorio(boolean), condicional
 
     async function getPerguntas() {
         const { data, error } = await sb().from('perguntas').select('*').order('etapa, id');
@@ -185,7 +188,6 @@ window.NEXO.api = (() => {
     }
 
     // ── MOTIVOS ──────────────────────────────────────────────
-    // Colunas reais: id(text), contexto, motivo
 
     async function getMotivos() {
         const { data, error } = await sb().from('motivos').select('*').order('contexto, motivo');
@@ -211,7 +213,6 @@ window.NEXO.api = (() => {
     }
 
     // ── CONFORMIDADE ─────────────────────────────────────────
-    // Colunas reais: id(bigint), ponto_medicao, faixa_min(numeric), faixa_max(numeric), unidade
 
     async function getConformidade() {
         const { data, error } = await sb().from('conformidade_temp').select('*').order('ponto_medicao');
@@ -225,26 +226,58 @@ window.NEXO.api = (() => {
         return data;
     }
 
-    // ── STATS (Dashboard) ────────────────────────────────────
+    // ── CONTRATOS ────────────────────────────────────────────
+
+    async function getContratos() {
+        const redeFilter = await _getRedeFilter();
+        let query = sb().from('contratos').select('*, redes(nome)').order('created_at', { ascending: false });
+        if (redeFilter) query = query.eq('id_rede', redeFilter);
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+    }
+
+    async function createContrato(payload) {
+        const { data, error } = await sb().from('contratos').insert(payload).select().single();
+        if (error) throw error;
+        return data;
+    }
+
+    async function updateContrato(id, payload) {
+        const { data, error } = await sb().from('contratos').update(payload).eq('id', id).select().single();
+        if (error) throw error;
+        return data;
+    }
+
+    async function deleteContrato(id) {
+        const { error } = await sb().from('contratos').delete().eq('id', id);
+        if (error) throw error;
+    }
+
+    // ── STATS ────────────────────────────────────────────────
 
     async function getStats() {
         const redeFilter = await _getRedeFilter();
+        let lojasQ = sb().from('lojas').select('id', { count: 'exact', head: true });
+        if (redeFilter) lojasQ = lojasQ.eq('id_rede', redeFilter);
 
-        let lojasQuery = sb().from('lojas').select('id', { count: 'exact', head: true });
-        if (redeFilter) lojasQuery = lojasQuery.eq('id_rede', redeFilter);
-
-        const [redesRes, lojasRes, pessoasRes, produtosRes] = await Promise.all([
+        const [redesRes, lojasRes, pessoasRes, produtosRes, contratosRes] = await Promise.all([
             sb().from('redes').select('id', { count: 'exact', head: true }),
-            lojasQuery,
+            lojasQ,
             sb().from('pessoas').select('id', { count: 'exact', head: true }),
-            sb().from('produtos').select('id', { count: 'exact', head: true })
+            sb().from('produtos').select('id', { count: 'exact', head: true }),
+            sb().from('contratos').select('id, valor_mensal, status').eq('status', 'ativo')
         ]);
+
+        const mrr = (contratosRes.data || []).reduce((sum, c) => sum + (parseFloat(c.valor_mensal) || 0), 0);
 
         return {
             redes: redesRes.count || 0,
             lojas: lojasRes.count || 0,
             pessoas: pessoasRes.count || 0,
-            produtos: produtosRes.count || 0
+            produtos: produtosRes.count || 0,
+            mrr: mrr,
+            contratosAtivos: (contratosRes.data || []).length
         };
     }
 
@@ -252,32 +285,52 @@ window.NEXO.api = (() => {
 
     async function createAdminUser(email, senha, metadata) {
         const { data: { session } } = await sb().auth.getSession();
-
         const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
             body: JSON.stringify({ email, password: senha, user_metadata: metadata })
         });
-
         const result = await resp.json();
         if (!resp.ok) throw new Error(result.error || 'Erro ao criar usuário');
         return result;
     }
 
+    // ── EXPORT HELPER ────────────────────────────────────────
+
+    function exportToCSV(data, filename) {
+        if (!data.length) return;
+        const keys = Object.keys(data[0]);
+        const csv = [
+            keys.join(';'),
+            ...data.map(row => keys.map(k => {
+                let val = row[k];
+                if (val === null || val === undefined) return '';
+                if (typeof val === 'object') val = JSON.stringify(val);
+                return String(val).replace(/;/g, ',').replace(/\n/g, ' ');
+            }).join(';'))
+        ].join('\n');
+
+        const bom = '\uFEFF';
+        const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
     return {
         getRedes, getRede, createRede, updateRede, deleteRede,
-        getLojas, getLoja, createLoja, updateLoja, deleteLoja,
+        getLojas, getLoja, createLoja, updateLoja, deleteLoja, uploadLogo,
         getPessoas, createPessoa, updatePessoa, deletePessoa,
         getProdutos, createProduto, updateProduto, deleteProduto,
         getVinculos, setVinculos,
         getPerguntas, updatePergunta,
         getMotivos, createMotivo, updateMotivo, deleteMotivo,
         getConformidade, updateConformidade,
-        getStats,
-        createAdminUser
+        getContratos, createContrato, updateContrato, deleteContrato,
+        getStats, createAdminUser, exportToCSV
     };
 
 })();
