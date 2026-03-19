@@ -1,4 +1,4 @@
-<!-- Dashboard — carregado via router no page-container -->
+<!-- Dashboard v2 — gráficos + MRR + atividade -->
 
 <div class="page-header">
     <div>
@@ -7,58 +7,124 @@
     </div>
 </div>
 
-<!-- Stats -->
 <div class="stats-grid" id="stats-grid">
-    <div class="stat-card">
-        <div class="stat-label">Redes</div>
-        <div class="stat-value gold" id="stat-redes">—</div>
+    <div class="stat-card"><div class="stat-label">Redes ativas</div><div class="stat-value gold" id="stat-redes">—</div></div>
+    <div class="stat-card"><div class="stat-label">Lojas implantadas</div><div class="stat-value" id="stat-lojas">—</div></div>
+    <div class="stat-card"><div class="stat-label">Pessoas cadastradas</div><div class="stat-value" id="stat-pessoas">—</div></div>
+    <div class="stat-card"><div class="stat-label">MRR</div><div class="stat-value gold" id="stat-mrr">—</div></div>
+</div>
+
+<div style="display:grid; grid-template-columns:1.3fr 1fr; gap:1rem; margin-bottom:1.5rem;">
+    <div class="card">
+        <div class="card-header"><h3>Lojas por rede</h3></div>
+        <div style="position:relative; height:220px; padding:0.5rem;">
+            <canvas id="chart-lojas-rede"></canvas>
+        </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-label">Lojas</div>
-        <div class="stat-value" id="stat-lojas">—</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">Pessoas</div>
-        <div class="stat-value" id="stat-pessoas">—</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">Produtos</div>
-        <div class="stat-value" id="stat-produtos">—</div>
+    <div class="card">
+        <div class="card-header"><h3>Produtos por proteína</h3></div>
+        <div style="position:relative; height:220px; padding:0.5rem;">
+            <canvas id="chart-proteina"></canvas>
+        </div>
     </div>
 </div>
 
-<!-- Quick Access -->
-<div class="card">
-    <div class="card-header">
-        <h3>Acesso Rápido</h3>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+    <div class="card">
+        <div class="card-header"><h3>Contratos</h3><span style="font-size:0.8rem;color:var(--text-muted)"><a href="#/contratos" style="color:var(--gold-400)">Ver todos →</a></span></div>
+        <div id="dash-contratos" style="padding:0 0.25rem;"></div>
     </div>
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:0.75rem;">
-        <a href="#/lojas" class="btn btn-secondary" style="justify-content:flex-start;">
-            🏪 Gerenciar Lojas
-        </a>
-        <a href="#/pessoas" class="btn btn-secondary" style="justify-content:flex-start;">
-            👥 Gerenciar Pessoas
-        </a>
-        <a href="#/vinculos" class="btn btn-secondary" style="justify-content:flex-start;">
-            🔗 Vínculos Loja ↔ Produto
-        </a>
-        <a href="#/perguntas" class="btn btn-secondary" style="justify-content:flex-start;">
-            ❓ Configurar Perguntas
-        </a>
+    <div class="card">
+        <div class="card-header"><h3>Acesso rápido</h3></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; padding:0.25rem;">
+            <a href="#/lojas" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">🏪 Lojas</a>
+            <a href="#/pessoas" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">👥 Pessoas</a>
+            <a href="#/vinculos" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">🔗 Vínculos</a>
+            <a href="#/perguntas" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">❓ Perguntas</a>
+            <a href="#/contratos" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">📄 Contratos</a>
+            <a href="#/produtos" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">🥩 Produtos</a>
+        </div>
     </div>
 </div>
 
 <script>
 window.initDashboard = async () => {
     try {
-        const stats = await NEXO.api.getStats();
+        const [stats, lojas, produtos, contratos] = await Promise.all([
+            NEXO.api.getStats(),
+            NEXO.api.getLojas(),
+            NEXO.api.getProdutos(),
+            NEXO.api.getContratos().catch(() => [])
+        ]);
+
         document.getElementById('stat-redes').textContent = stats.redes;
         document.getElementById('stat-lojas').textContent = stats.lojas;
         document.getElementById('stat-pessoas').textContent = stats.pessoas;
-        document.getElementById('stat-produtos').textContent = stats.produtos;
+        document.getElementById('stat-mrr').textContent = 'R$ ' + stats.mrr.toLocaleString('pt-BR', {minimumFractionDigits:0});
+
+        // Chart: Lojas por rede
+        const redeCount = {};
+        lojas.forEach(l => { const r = l.redes?.nome || l.rede || 'Sem rede'; redeCount[r] = (redeCount[r] || 0) + 1; });
+        const redeLabels = Object.keys(redeCount);
+        const redeValues = Object.values(redeCount);
+
+        new Chart(document.getElementById('chart-lojas-rede'), {
+            type: 'bar',
+            data: {
+                labels: redeLabels,
+                datasets: [{ label: 'Lojas', data: redeValues, backgroundColor: '#c9a84c', borderRadius: 6, barThickness: 32 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#64748b', font: { size: 11 } }, grid: { display: false } },
+                    y: { ticks: { color: '#64748b', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                }
+            }
+        });
+
+        // Chart: Produtos por proteína
+        const protCount = {};
+        produtos.forEach(p => { protCount[p.proteina] = (protCount[p.proteina] || 0) + 1; });
+        const protLabels = Object.keys(protCount);
+        const protValues = Object.values(protCount);
+        const protColors = protLabels.map(l => l === 'Bovino' ? '#c9a84c' : l === 'Suino' ? '#34d399' : '#60a5fa');
+
+        new Chart(document.getElementById('chart-proteina'), {
+            type: 'doughnut',
+            data: {
+                labels: protLabels,
+                datasets: [{ data: protValues, backgroundColor: protColors, borderWidth: 0 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '65%',
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 12 }, padding: 12, usePointStyle: true, pointStyleWidth: 10 } }
+                }
+            }
+        });
+
+        // Contratos resumo
+        const contDiv = document.getElementById('dash-contratos');
+        if (contratos.length === 0) {
+            contDiv.innerHTML = '<div class="empty-state" style="padding:1rem;"><p style="font-size:0.85rem;">Nenhum contrato cadastrado</p></div>';
+        } else {
+            const statusColors = { ativo: 'badge-success', negociando: 'badge-warning', encerrado: 'badge-danger', cancelado: 'badge-danger' };
+            contDiv.innerHTML = contratos.slice(0, 5).map(c => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0.5rem;border-bottom:1px solid var(--border-default);">
+                    <div>
+                        <div style="font-size:0.85rem;font-weight:550;">${NEXO.ui.escapeHtml(c.redes?.nome || '—')}</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);">R$ ${(parseFloat(c.valor_mensal)||0).toLocaleString('pt-BR')}/mês</div>
+                    </div>
+                    <span class="badge ${statusColors[c.status] || 'badge-info'}">${c.status}</span>
+                </div>
+            `).join('');
+        }
+
     } catch (err) {
         console.error('[Dashboard]', err);
-        NEXO.ui.toast('Erro ao carregar dados.', 'error');
+        NEXO.ui.toast('Erro ao carregar dashboard.', 'error');
     }
 };
 </script>
