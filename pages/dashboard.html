@@ -1,4 +1,4 @@
-<!-- Dashboard v2b — donut fix + melhorias -->
+<!-- Dashboard v2c — legenda custom quadrada -->
 
 <div class="page-header">
     <div>
@@ -23,8 +23,11 @@
     </div>
     <div class="card">
         <div class="card-header"><h3>Produtos por proteína</h3></div>
-        <div style="position:relative; height:220px; padding:0.5rem; display:flex; align-items:center; justify-content:center;">
-            <canvas id="chart-proteina" style="max-width:220px; max-height:220px;"></canvas>
+        <div style="display:flex; align-items:center; justify-content:center; gap:24px; padding:1rem;">
+            <div style="position:relative; width:180px; height:180px;">
+                <canvas id="chart-proteina"></canvas>
+            </div>
+            <div id="donut-legend" style="display:flex; flex-direction:column; gap:10px;"></div>
         </div>
     </div>
 </div>
@@ -62,16 +65,13 @@ window.initDashboard = async () => {
         document.getElementById('stat-pessoas').textContent = stats.pessoas;
         document.getElementById('stat-mrr').textContent = 'R$ ' + stats.mrr.toLocaleString('pt-BR', {minimumFractionDigits:0});
 
-        // Chart: Lojas por rede
+        // Lojas por rede
         const redeCount = {};
         lojas.forEach(l => { const r = l.redes?.nome || l.rede || 'Sem rede'; redeCount[r] = (redeCount[r] || 0) + 1; });
 
         new Chart(document.getElementById('chart-lojas-rede'), {
             type: 'bar',
-            data: {
-                labels: Object.keys(redeCount),
-                datasets: [{ label: 'Lojas', data: Object.values(redeCount), backgroundColor: '#c9a84c', borderRadius: 6, barThickness: 32 }]
-            },
+            data: { labels: Object.keys(redeCount), datasets: [{ label: 'Lojas', data: Object.values(redeCount), backgroundColor: '#c9a84c', borderRadius: 6, barThickness: 32 }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
@@ -82,27 +82,32 @@ window.initDashboard = async () => {
             }
         });
 
-        // Chart: Produtos por proteína — donut REDONDO
+        // Produtos por proteína — donut com legenda HTML custom
         const protCount = {};
         produtos.forEach(p => { protCount[p.proteina] = (protCount[p.proteina] || 0) + 1; });
         const protColors = { 'Bovino': '#c9a84c', 'Suino': '#34d399', 'Aves': '#60a5fa' };
+        const labels = Object.keys(protCount);
+        const values = Object.values(protCount);
+        const colors = labels.map(k => protColors[k] || '#94a3b8');
 
         new Chart(document.getElementById('chart-proteina'), {
             type: 'doughnut',
-            data: {
-                labels: Object.keys(protCount),
-                datasets: [{ data: Object.values(protCount), backgroundColor: Object.keys(protCount).map(k => protColors[k] || '#94a3b8'), borderWidth: 0 }]
-            },
+            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
             options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                aspectRatio: 1,
-                cutout: '60%',
-                plugins: {
-                    legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 12 }, padding: 16, usePointStyle: true, pointStyleWidth: 10 } }
-                }
+                responsive: true, maintainAspectRatio: true, aspectRatio: 1, cutout: '60%',
+                plugins: { legend: { display: false } }
             }
         });
+
+        // Legenda HTML com quadradinhos
+        const legendDiv = document.getElementById('donut-legend');
+        legendDiv.innerHTML = labels.map((l, i) =>
+            `<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);">
+                <span style="width:12px;height:12px;border-radius:3px;background:${colors[i]};flex-shrink:0;"></span>
+                <span>${l}</span>
+                <span style="font-weight:600;color:var(--text-primary);margin-left:4px;">${values[i]}</span>
+            </div>`
+        ).join('');
 
         // Contratos resumo
         const contDiv = document.getElementById('dash-contratos');
