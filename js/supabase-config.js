@@ -1,7 +1,7 @@
 // NEXO Intelligence Admin — Supabase Configuration
 
 const SUPABASE_URL = 'https://kkjfqltpykkuwshtfhow.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_x-ADwvaQzwBqIRSZuLKsuw_NWPS_qwC';
+const SUPABASE_ANON_KEY = 'sb_publishable_MvdXO8-wxp4VbAfB2kHmQw_mM_K2nYn';
 
 window.NEXO = window.NEXO || {};
 
