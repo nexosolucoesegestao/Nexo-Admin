@@ -1,4 +1,4 @@
-<!-- Dashboard v2c — legenda custom quadrada -->
+<!-- Dashboard v2d — ES5 compativel com new Function() -->
 
 <div class="page-header">
     <div>
@@ -51,14 +51,17 @@
 </div>
 
 <script>
-window.initDashboard = async () => {
-    try {
-        const [stats, lojas, produtos, contratos] = await Promise.all([
-            NEXO.api.getStats(),
-            NEXO.api.getLojas(),
-            NEXO.api.getProdutos(),
-            NEXO.api.getContratos().catch(() => [])
-        ]);
+window.initDashboard = function() {
+    Promise.all([
+        NEXO.api.getStats(),
+        NEXO.api.getLojas(),
+        NEXO.api.getProdutos(),
+        NEXO.api.getContratos().catch(function() { return []; })
+    ]).then(function(results) {
+        var stats = results[0];
+        var lojas = results[1];
+        var produtos = results[2];
+        var contratos = results[3];
 
         document.getElementById('stat-redes').textContent = stats.redes;
         document.getElementById('stat-lojas').textContent = stats.lojas;
@@ -66,12 +69,17 @@ window.initDashboard = async () => {
         document.getElementById('stat-mrr').textContent = 'R$ ' + stats.mrr.toLocaleString('pt-BR', {minimumFractionDigits:0});
 
         // Lojas por rede
-        const redeCount = {};
-        lojas.forEach(l => { const r = l.redes?.nome || l.rede || 'Sem rede'; redeCount[r] = (redeCount[r] || 0) + 1; });
-
+        var redeCount = {};
+        lojas.forEach(function(l) {
+            var r = (l.redes && l.redes.nome) || l.rede || 'Sem rede';
+            redeCount[r] = (redeCount[r] || 0) + 1;
+        });
         new Chart(document.getElementById('chart-lojas-rede'), {
             type: 'bar',
-            data: { labels: Object.keys(redeCount), datasets: [{ label: 'Lojas', data: Object.values(redeCount), backgroundColor: '#c9a84c', borderRadius: 6, barThickness: 32 }] },
+            data: {
+                labels: Object.keys(redeCount),
+                datasets: [{ label: 'Lojas', data: Object.values(redeCount), backgroundColor: '#c9a84c', borderRadius: 6, barThickness: 32 }]
+            },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
@@ -82,53 +90,50 @@ window.initDashboard = async () => {
             }
         });
 
-        // Produtos por proteína — donut com legenda HTML custom
-        const protCount = {};
-        produtos.forEach(p => { protCount[p.proteina] = (protCount[p.proteina] || 0) + 1; });
-        const protColors = { 'Bovino': '#c9a84c', 'Suino': '#34d399', 'Aves': '#60a5fa' };
-        const labels = Object.keys(protCount);
-        const values = Object.values(protCount);
-        const colors = labels.map(k => protColors[k] || '#94a3b8');
-
+        // Produtos por proteína
+        var protCount = {};
+        produtos.forEach(function(p) { protCount[p.proteina] = (protCount[p.proteina] || 0) + 1; });
+        var protColors = { 'Bovino': '#c9a84c', 'Suino': '#34d399', 'Aves': '#60a5fa' };
+        var labels = Object.keys(protCount);
+        var values = Object.values(protCount);
+        var colors = labels.map(function(k) { return protColors[k] || '#94a3b8'; });
         new Chart(document.getElementById('chart-proteina'), {
             type: 'doughnut',
-            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
-            options: {
-                responsive: true, maintainAspectRatio: true, aspectRatio: 1, cutout: '60%',
-                plugins: { legend: { display: false } }
-            }
+            data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: true, aspectRatio: 1, cutout: '60%', plugins: { legend: { display: false } } }
         });
 
-        // Legenda HTML com quadradinhos
-        const legendDiv = document.getElementById('donut-legend');
-        legendDiv.innerHTML = labels.map((l, i) =>
-            `<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);">
-                <span style="width:12px;height:12px;border-radius:3px;background:${colors[i]};flex-shrink:0;"></span>
-                <span>${l}</span>
-                <span style="font-weight:600;color:var(--text-primary);margin-left:4px;">${values[i]}</span>
-            </div>`
-        ).join('');
-
-        // Contratos resumo
-        const contDiv = document.getElementById('dash-contratos');
-        if (!contratos.length) {
-            contDiv.innerHTML = '<div class="empty-state" style="padding:1rem;"><p style="font-size:0.85rem;">Nenhum contrato</p></div>';
-        } else {
-            const sc = { ativo: 'badge-success', negociando: 'badge-warning', encerrado: 'badge-danger', cancelado: 'badge-danger' };
-            contDiv.innerHTML = contratos.slice(0, 5).map(c => `
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0.5rem;border-bottom:1px solid var(--border-default);">
-                    <div>
-                        <div style="font-size:0.85rem;font-weight:550;">${NEXO.ui.escapeHtml(c.redes?.nome || '—')}</div>
-                        <div style="font-size:0.75rem;color:var(--text-muted);">R$ ${(parseFloat(c.valor_mensal)||0).toLocaleString('pt-BR')}/mês</div>
-                    </div>
-                    <span class="badge ${sc[c.status] || 'badge-info'}">${c.status}</span>
-                </div>
-            `).join('');
+        // Legenda donut
+        var legendEl = document.getElementById('donut-legend');
+        if (legendEl) {
+            legendEl.innerHTML = labels.map(function(l, i) {
+                return '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<div style="width:12px;height:12px;border-radius:2px;background:' + colors[i] + ';flex-shrink:0;"></div>' +
+                    '<span style="font-size:0.8rem;color:#94a3b8;">' + l + ' (' + values[i] + ')</span>' +
+                    '</div>';
+            }).join('');
         }
 
-    } catch (err) {
-        console.error('[Dashboard]', err);
-        NEXO.ui.toast('Erro ao carregar dashboard.', 'error');
-    }
+        // Contratos recentes
+        var contEl = document.getElementById('dash-contratos');
+        if (contEl && contratos.length > 0) {
+            var statusMap = { 'ativo': '#34d399', 'pausado': '#f59e0b', 'cancelado': '#ef4444', 'prospecto': '#60a5fa' };
+            contEl.innerHTML = contratos.slice(0, 4).map(function(c) {
+                var cor = statusMap[c.status] || '#94a3b8';
+                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">' +
+                    '<div><div style="font-size:0.85rem;font-weight:500;color:#e2e8f0;">' + (c.cliente || c.id_rede || '—') + '</div>' +
+                    '<div style="font-size:0.75rem;color:#64748b;">' + (c.tipo || '—') + '</div></div>' +
+                    '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<span style="font-size:0.8rem;color:#c9a84c;">R$ ' + ((c.valor_mensal || 0).toLocaleString('pt-BR')) + '</span>' +
+                    '<span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:' + cor + '22;color:' + cor + ';">' + (c.status || '—') + '</span>' +
+                    '</div></div>';
+            }).join('');
+        } else if (contEl) {
+            contEl.innerHTML = '<p style="color:#64748b;font-size:0.85rem;padding:0.5rem 0;">Nenhum contrato cadastrado.</p>';
+        }
+
+    }).catch(function(err) {
+        console.error('[Dashboard] Erro:', err);
+    });
 };
 </script>
