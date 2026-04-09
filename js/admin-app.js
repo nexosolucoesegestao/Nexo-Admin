@@ -1,15 +1,22 @@
 // ============================================================
-// NEXO Intelligence Admin — App Init v2.0
+// NEXO Intelligence Admin — App Init v2.1
 // ============================================================
 
-(async () => {
+(async function() {
 
-    const user = await NEXO.auth.requireAuth();
+    var user = await NEXO.auth.requireAuth();
     if (!user) return;
 
-    const isSuperAdmin = NEXO.auth.isSuperAdmin(user);
-    const nome = NEXO.auth.getNome(user);
-    const role = NEXO.auth.getRole(user);
+    // Esconder loading, mostrar layout
+    var authLoading = document.getElementById('auth-loading');
+    if (authLoading) authLoading.style.display = 'none';
+
+    var adminLayout = document.getElementById('admin-layout');
+    if (adminLayout) adminLayout.style.display = 'flex';
+
+    var isSuperAdmin = NEXO.auth.isSuperAdmin(user);
+    var nome = NEXO.auth.getNome(user);
+    var role = NEXO.auth.getRole(user);
 
     document.getElementById('user-name').textContent = nome;
     document.getElementById('user-role').textContent =
@@ -18,77 +25,70 @@
         nome.charAt(0).toUpperCase();
 
     if (isSuperAdmin) {
-        document.querySelectorAll('.only-super').forEach(el => {
+        document.querySelectorAll('.only-super').forEach(function(el) {
             el.style.display = '';
         });
     }
 
-    const sidebar = document.getElementById('sidebar');
-    const backdrop = document.getElementById('sidebar-backdrop');
-    const menuToggle = document.getElementById('menu-toggle');
+    var sidebar = document.getElementById('sidebar');
+    var menuToggle = document.getElementById('menu-toggle');
+    var sidebarClose = document.getElementById('sidebar-close');
 
-    menuToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('sidebar-open');
-        backdrop.classList.toggle('visible');
-    });
-
-    backdrop.addEventListener('click', () => {
-        sidebar.classList.remove('sidebar-open');
-        backdrop.classList.remove('visible');
-    });
-
-    document.querySelectorAll('.sidebar-link').forEach(link => {
-        link.addEventListener('click', () => {
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('sidebar-open');
-                backdrop.classList.remove('visible');
-            }
+    if (menuToggle) {
+        menuToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('sidebar-open');
         });
-    });
+    }
+    if (sidebarClose) {
+        sidebarClose.addEventListener('click', function() {
+            sidebar.classList.remove('sidebar-open');
+        });
+    }
 
-    document.getElementById('btn-logout').addEventListener('click', () => {
-        NEXO.ui.confirm('Sair', 'Deseja sair do painel?', () => {
+    document.getElementById('btn-logout').addEventListener('click', function() {
+        if (confirm('Deseja sair do painel?')) {
             NEXO.auth.logout();
-        }, { confirmText: 'Sair', type: 'danger' });
+        }
     });
 
-    const pageTitles = {
-        dashboard: 'Dashboard',
-        redes: 'Redes',
-        lojas: 'Lojas',
-        pessoas: 'Pessoas',
-        produtos: 'Produtos',
-        vinculos: 'Loja ↔ Produtos',
-        perguntas: 'Perguntas',
-        motivos: 'Motivos',
+    var pageTitles = {
+        dashboard:    'Dashboard',
+        redes:        'Redes',
+        lojas:        'Lojas',
+        pessoas:      'Pessoas',
+        produtos:     'Produtos',
+        vinculos:     'Loja x Produtos',
+        perguntas:    'Perguntas',
+        motivos:      'Motivos',
         conformidade: 'Conformidade',
-        contratos: 'Contratos',
-        usuarios: 'Usuários Admin'
+        contratos:    'Contratos',
+        usuarios:     'Usuarios Admin'
     };
 
     NEXO.router.setContainer('#page-container');
 
     NEXO.router.register({
-        dashboard:    { file: 'pages/dashboard.html',    init: () => window.initDashboard?.() },
-        redes:        { file: 'pages/redes.html',        init: () => window.initRedes?.() },
-        lojas:        { file: 'pages/lojas.html',        init: () => window.initLojas?.() },
-        pessoas:      { file: 'pages/pessoas.html',      init: () => window.initPessoas?.() },
-        produtos:     { file: 'pages/produtos.html',     init: () => window.initProdutos?.() },
-        vinculos:     { file: 'pages/vinculos.html',     init: () => window.initVinculos?.() },
-        perguntas:    { file: 'pages/perguntas.html',    init: () => window.initPerguntas?.() },
-        motivos:      { file: 'pages/motivos.html',      init: () => window.initMotivos?.() },
-        conformidade: { file: 'pages/conformidade.html', init: () => window.initConformidade?.() },
-        contratos:    { file: 'pages/contratos.html',    init: () => window.initContratos?.() },
-        usuarios:     { file: 'pages/usuarios.html',     init: () => window.initUsuarios?.() }
+        dashboard:    { file: 'pages/dashboard.html',    init: function() { if(window.initDashboard) window.initDashboard(); } },
+        redes:        { file: 'pages/redes.html',        init: function() { if(window.initRedes) window.initRedes(); } },
+        lojas:        { file: 'pages/lojas.html',        init: function() { if(window.initLojas) window.initLojas(); } },
+        pessoas:      { file: 'pages/pessoas.html',      init: function() { if(window.initPessoas) window.initPessoas(); } },
+        produtos:     { file: 'pages/produtos.html',     init: function() { if(window.initProdutos) window.initProdutos(); } },
+        vinculos:     { file: 'pages/vinculos.html',     init: function() { if(window.initVinculos) window.initVinculos(); } },
+        perguntas:    { file: 'pages/perguntas.html',    init: function() { if(window.initPerguntas) window.initPerguntas(); } },
+        motivos:      { file: 'pages/motivos.html',      init: function() { if(window.initMotivos) window.initMotivos(); } },
+        conformidade: { file: 'pages/conformidade.html', init: function() { if(window.initConformidade) window.initConformidade(); } },
+        contratos:    { file: 'pages/contratos.html',    init: function() { if(window.initContratos) window.initContratos(); } },
+        usuarios:     { file: 'pages/usuarios.html',     init: function() { if(window.initUsuarios) window.initUsuarios(); } }
     });
 
-    NEXO.router.setBeforeNavigate(async (hash) => {
-        const route = hash.replace('#/', '').replace('#', '') || 'dashboard';
+    NEXO.router.setBeforeNavigate(async function(hash) {
+        var route = hash.replace('#/', '').replace('#', '') || 'dashboard';
         if (!isSuperAdmin && ['redes', 'usuarios'].includes(route)) {
             NEXO.ui.toast('Acesso restrito.', 'warning');
             return false;
         }
-        document.getElementById('page-title').textContent = pageTitles[route] || 'NEXO';
+        var titleEl = document.getElementById('page-title');
+        if (titleEl) titleEl.textContent = pageTitles[route] || 'NEXO';
         return true;
     });
 
