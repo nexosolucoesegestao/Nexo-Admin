@@ -1,4 +1,4 @@
-<!-- Dashboard v2d — ES5 compativel com new Function() -->
+<!-- Dashboard v2e — dados corrigidos -->
 
 <div class="page-header">
     <div>
@@ -52,27 +52,33 @@
 
 <script>
 window.initDashboard = function() {
+    var sb = NEXO.supabase;
+
     Promise.all([
         NEXO.api.getStats(),
-        NEXO.api.getLojas(),
+        sb.from('lojas').select('id, nome, id_rede, redes(nome)'),
         NEXO.api.getProdutos(),
-        NEXO.api.getContratos().catch(function() { return []; })
+        sb.from('contratos').select('id, tipo, valor_mensal, valor_setup, status, id_rede, redes(nome)').order('created_at', { ascending: false }).limit(4)
     ]).then(function(results) {
-        var stats = results[0];
-        var lojas = results[1];
-        var produtos = results[2];
-        var contratos = results[3];
+        var stats     = results[0];
+        var lojasResp = results[1];
+        var produtos  = results[2];
+        var contResp  = results[3];
 
-        document.getElementById('stat-redes').textContent = stats.redes;
-        document.getElementById('stat-lojas').textContent = stats.lojas;
+        var lojas     = lojasResp.data || [];
+        var contratos = contResp.data  || [];
+
+        // ── KPIs ──────────────────────────────────────────────
+        document.getElementById('stat-redes').textContent   = stats.redes;
+        document.getElementById('stat-lojas').textContent   = stats.lojas;
         document.getElementById('stat-pessoas').textContent = stats.pessoas;
-        document.getElementById('stat-mrr').textContent = 'R$ ' + stats.mrr.toLocaleString('pt-BR', {minimumFractionDigits:0});
+        document.getElementById('stat-mrr').textContent     = 'R$ ' + stats.mrr.toLocaleString('pt-BR', {minimumFractionDigits:0});
 
-        // Lojas por rede
+        // ── Lojas por rede ────────────────────────────────────
         var redeCount = {};
         lojas.forEach(function(l) {
-            var r = (l.redes && l.redes.nome) || l.rede || 'Sem rede';
-            redeCount[r] = (redeCount[r] || 0) + 1;
+            var nome = (l.redes && l.redes.nome) ? l.redes.nome : 'Sem rede';
+            redeCount[nome] = (redeCount[nome] || 0) + 1;
         });
         new Chart(document.getElementById('chart-lojas-rede'), {
             type: 'bar',
@@ -90,20 +96,20 @@ window.initDashboard = function() {
             }
         });
 
-        // Produtos por proteína
-        var protCount = {};
+        // ── Produtos por proteína ─────────────────────────────
+        var protCount  = {};
         produtos.forEach(function(p) { protCount[p.proteina] = (protCount[p.proteina] || 0) + 1; });
         var protColors = { 'Bovino': '#c9a84c', 'Suino': '#34d399', 'Aves': '#60a5fa' };
         var labels = Object.keys(protCount);
         var values = Object.values(protCount);
         var colors = labels.map(function(k) { return protColors[k] || '#94a3b8'; });
+
         new Chart(document.getElementById('chart-proteina'), {
             type: 'doughnut',
             data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
             options: { responsive: true, maintainAspectRatio: true, aspectRatio: 1, cutout: '60%', plugins: { legend: { display: false } } }
         });
 
-        // Legenda donut
         var legendEl = document.getElementById('donut-legend');
         if (legendEl) {
             legendEl.innerHTML = labels.map(function(l, i) {
@@ -114,23 +120,34 @@ window.initDashboard = function() {
             }).join('');
         }
 
-        // Contratos recentes
+        // ── Contratos ─────────────────────────────────────────
         var contEl = document.getElementById('dash-contratos');
-        if (contEl && contratos.length > 0) {
-            var statusMap = { 'ativo': '#34d399', 'pausado': '#f59e0b', 'cancelado': '#ef4444', 'prospecto': '#60a5fa' };
-            contEl.innerHTML = contratos.slice(0, 4).map(function(c) {
-                var cor = statusMap[c.status] || '#94a3b8';
-                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">' +
-                    '<div><div style="font-size:0.85rem;font-weight:500;color:#e2e8f0;">' + (c.cliente || c.id_rede || '—') + '</div>' +
-                    '<div style="font-size:0.75rem;color:#64748b;">' + (c.tipo || '—') + '</div></div>' +
-                    '<div style="display:flex;align-items:center;gap:8px;">' +
-                    '<span style="font-size:0.8rem;color:#c9a84c;">R$ ' + ((c.valor_mensal || 0).toLocaleString('pt-BR')) + '</span>' +
-                    '<span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:' + cor + '22;color:' + cor + ';">' + (c.status || '—') + '</span>' +
-                    '</div></div>';
-            }).join('');
-        } else if (contEl) {
+        if (!contEl) return;
+
+        if (contratos.length === 0) {
             contEl.innerHTML = '<p style="color:#64748b;font-size:0.85rem;padding:0.5rem 0;">Nenhum contrato cadastrado.</p>';
+            return;
         }
+
+        var statusMap = { 'ativo': '#34d399', 'pausado': '#f59e0b', 'cancelado': '#ef4444', 'prospecto': '#60a5fa', 'negociando': '#a78bfa', 'setup_fee': '#60a5fa' };
+        var tipoLabel = { 'setup': 'Setup', 'fee_mensal': 'Fee Mensal', 'setup_fee': 'Setup + Fee', 'combo': 'Combo' };
+
+        contEl.innerHTML = contratos.map(function(c) {
+            var nomRede = (c.redes && c.redes.nome) ? c.redes.nome : '—';
+            var tipo    = tipoLabel[c.tipo] || c.tipo || '—';
+            var valor   = c.valor_mensal > 0 ? c.valor_mensal : c.valor_setup || 0;
+            var cor     = statusMap[c.status] || '#94a3b8';
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">' +
+                '<div>' +
+                    '<div style="font-size:0.85rem;font-weight:500;color:#e2e8f0;">' + nomRede + '</div>' +
+                    '<div style="font-size:0.75rem;color:#64748b;">' + tipo + '</div>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<span style="font-size:0.8rem;color:#c9a84c;">R$ ' + valor.toLocaleString('pt-BR') + '</span>' +
+                    '<span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:' + cor + '22;color:' + cor + ';">' + (c.status || '—') + '</span>' +
+                '</div>' +
+                '</div>';
+        }).join('');
 
     }).catch(function(err) {
         console.error('[Dashboard] Erro:', err);
