@@ -1,16 +1,33 @@
-// NEXO Intelligence Admin — Supabase Configuration
-
-const SUPABASE_URL = 'https://kkjfqltpykkuwshtfhow.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_MvdXO8-wxp4VbAfB2kHmQw_mM_K2nYn';
+// ============================================================
+// NEXO Intelligence Admin — Supabase Config
+// Lê credenciais do window.__NEXO_ENV__ gerado pelo build.
+// Nunca hardcode credenciais aqui.
+// ============================================================
 
 window.NEXO = window.NEXO || {};
 
-if (!window.NEXO.supabase) {
-    window.NEXO.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: {
-            autoRefreshToken: true,
-            persistSession: true,
-            detectSessionInUrl: true
-        }
-    });
-}
+(function () {
+    var env = window.__NEXO_ENV__;
+
+    if (!env || !env.SUPABASE_URL || !env.SUPABASE_KEY) {
+        console.error('[NEXO Config] Credenciais não encontradas. Verifique o deploy no Vercel.');
+        return;
+    }
+
+    if (!window.NEXO.supabase) {
+        window.NEXO.supabase = window.supabase.createClient(
+            env.SUPABASE_URL,
+            env.SUPABASE_KEY,
+            {
+                auth: {
+                    autoRefreshToken: true,
+                    persistSession: true,
+                    detectSessionInUrl: true
+                }
+            }
+        );
+    }
+
+    // Limpar credenciais do window após uso — impede acesso via console
+    delete window.__NEXO_ENV__;
+})();
